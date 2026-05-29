@@ -72,11 +72,15 @@ def _px_to_pt(px: float, dpi: int) -> float:
 # ---------------------------------------------------------------------------
 
 def _build_header(config: dict) -> str:
-    """生成 Typst 文件的全局设定头部。"""
-    font_family  = config.get("font_family", "STKaiTi")
-    font_size    = float(config.get("font_size", 14))
-    line_spacing = float(config.get("line_spacing", 1.8))
-    margin       = config.get("page_margin", {})
+    """生成 Typst 文件的全局设定头部。
+
+    排版策略：使用 #place(dx, dy) 绝对坐标定位每个字符，
+    完全忠实 OCR 原始位置，不依赖任何竖排语法（Typst 不支持 dir:ttb）。
+    每页使用 #block(width, height)[ ... ] 包裹，确保页面尺寸正确。
+    """
+    font_family = config.get("font_family", "STKaiTi")
+    font_size   = float(config.get("font_size", 14))
+    margin      = config.get("page_margin", {})
     top    = float(margin.get("top",    36))
     bottom = float(margin.get("bottom", 36))
     left   = float(margin.get("left",   36))
@@ -84,19 +88,16 @@ def _build_header(config: dict) -> str:
 
     lines = [
         "// GenBook — 自动生成的 Typst 古籍排版文件",
-        "// 可使用 Typst 编辑器（如 VSCode + Tinymist 插件）打开并预览",
+        "// 排版方式：每字按 OCR 坐标绝对定位（#place），忠实还原原始版面",
+        "// 使用 VSCode + Tinymist 插件打开可实时预览",
         "// 编译为 PDF：typst compile <此文件> <输出.pdf>",
+        "// 注意：若预览显示方块字，请将字体文件放入系统字体目录后重启 VSCode",
         "//",
         "",
-        f'#set text(font: "{font_family}", size: {font_size:.1f}pt, lang: "zh")',
-        f"#set par(leading: {line_spacing:.2f}em, justify: false)",
-        f"#set page(",
-        f"  margin: (top: {top:.1f}pt, bottom: {bottom:.1f}pt,",
-        f"           left: {left:.1f}pt, right: {right:.1f}pt),",
-        f")",
-        "",
-        "// 竖排设定：文字从上到下，列从右到左",
-        '#set text(dir: ttb)',
+        f'#set text(font: ("{font_family}", "Noto Serif CJK TC", "SimSun", "Arial Unicode MS"),',
+        f'          size: {font_size:.1f}pt, lang: "zh")',
+        "#set page(margin: (top: " + f"{top:.1f}pt, bottom: {bottom:.1f}pt, "
+        + f"left: {left:.1f}pt, right: {right:.1f}pt))",
         "",
     ]
     return "\n".join(lines)
@@ -113,14 +114,14 @@ def _build_page_block(
 ) -> str:
     """将单个 PageData 转换为 Typst 页面块字符串。
 
-    Args:
-        page:        单页数据。
-        assets_dir:  图片资产保存目录（绝对或相对 .typ 文件的路径）。
-        page_index:  页面序号（0-based，用于 pagebreak 判断）。
-
-    Returns:
-        该页对应的 Typst 源码字符串。
+    策略：每个字符用 #place(dx:Xpt, dy:Ypt)[字] 绝对定位，
+    完全忠实 OCR 原始坐标，不依赖竖排语法。
+    整页用 #block(width, height, clip:true)[ ... ] 包裹确保尺寸。
     """
+    dpi  = page.dpi
+    pw   = _px_to_pt(page.orig_width_px,  dpi)
+    ph   = _px_to_pt(page.orig_height_px, dpi)
+
     lines = []
 
     # 页分隔（第一页前不加）
@@ -128,34 +129,53 @@ def _build_page_block(
         lines.append("#pagebreak()")
         lines.append("")
 
-    lines.append(f"// --- 第 {page.page_num} 页 ---")
+    lines.append(f"// --- 第 {page.page_num} 页 (原始尺寸 {pw:.1f}pt × {ph:.1f}pt) ---")
     lines.append("")
 
-    # ── 文字列 ───────────────────────────────────────────────────────────────
-    for col in page.text_columns:
-        text = "".join(_escape_typst(c.text) for c in col.chars)
-        if text.strip():
-            lines.append(text)
-            lines.append("")
+    # 用 #block 包裹整页，设置与原始页面相同的宽高
+    lines.append(f"#block(width: {pw:.1f}pt, height: {ph:.1f}pt, clip: false)[")
+    lines.append("")
 
-    # ── 图片区域 ─────────────────────────────────────────────────────────────
+    # ── 文字列：每字绝对定位 ──────────────────────────────────────────────────
+    for col in page.text_columns:
+        for char in col.chars:
+            x1, y1, x2, y2 = char.bbox
+            # bbox 中心点 → pt 坐标
+            cx_pt = _px_to_pt((x1 + x2) / 2, dpi)
+            cy_pt = _px_to_pt((y1 + y2) / 2, dpi)
+            ch_size_pt = _px_to_pt(y2 - y1, dpi)  # 字符高度用于 font-size 参考
+            ch = _escape_typst(char.text)
+            if not ch.strip():
+                continue
+            # #place(dx, dy) 相对页面左上角定位
+            lines.append(
+                f'  #place(dx: {cx_pt:.1f}pt, dy: {cy_pt:.1f}pt)[{ch}]'
+            )
+
+    lines.append("")
+
+    # ── 图片区域：绝对定位嵌入 ────────────────────────────────────────────────
     for img_idx, img_region in enumerate(page.image_regions):
         img_filename = f"p{page.page_num}_img_{img_idx + 1:03d}.png"
         img_path_abs = os.path.join(assets_dir, img_filename)
 
-        # 保存图片资产
         os.makedirs(assets_dir, exist_ok=True)
         with open(img_path_abs, "wb") as f:
             f.write(img_region.image_bytes)
 
-        # 计算图片宽度（转换为 pt，保持比例）
         x1, y1, x2, y2 = img_region.bbox
-        w_pt = _px_to_pt(x2 - x1, page.dpi)
-
-        # 相对于 .typ 文件的路径（assets/ 子目录）
+        x_pt  = _px_to_pt(x1, dpi)
+        y_pt  = _px_to_pt(y1, dpi)
+        w_pt  = _px_to_pt(x2 - x1, dpi)
+        h_pt  = _px_to_pt(y2 - y1, dpi)
         rel_path = os.path.join("assets", img_filename).replace("\\", "/")
-        lines.append(f'#image("{rel_path}", width: {w_pt:.1f}pt)')
-        lines.append("")
+        lines.append(
+            f'  #place(dx: {x_pt:.1f}pt, dy: {y_pt:.1f}pt)['
+            f'#image("{rel_path}", width: {w_pt:.1f}pt, height: {h_pt:.1f}pt)]'
+        )
+
+    lines.append("]")  # 关闭 #block
+    lines.append("")
 
     return "\n".join(lines)
 
