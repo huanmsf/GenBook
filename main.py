@@ -156,6 +156,7 @@ def process(
     from modules.image_cropper import crop_image_region
     from modules.page_model import PageData, TextColumn, CharData, ImageRegion
     from modules.pdf_writer import load_config, create_pdf
+    from modules.typst_writer import create_typst, build_typ_output_path
 
     config = load_config(config_path)
 
@@ -220,6 +221,13 @@ def process(
     log.info(f"生成 PDF: {output_pdf}")
     create_pdf(all_pages, output_pdf, config)
     log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
+
+    # 同步生成 Typst 源文件（与 PDF 同目录，扩展名 .typ）
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
+    log.info(f"  编译为 PDF: typst compile \"{os.path.abspath(typ_path)}\"")
 
 
 # ---------------------------------------------------------------------------
