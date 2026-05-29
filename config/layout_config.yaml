@@ -1,0 +1,19 @@
+# GenBook 排版配置文件
+# 修改此文件即可自定义输出 PDF 的字体、字号、排版等参数
+
+font_family: "STKaiTi"
+font_path: "fonts/STKAITI.TTF"
+font_size: 14
+line_spacing: 1.8
+column_spacing: 10
+
+page_margin:
+  top: 36
+  bottom: 36
+  left: 36
+  right: 36
+
+page_size: "original"
+writing_mode: "vertical-rl"
+image_scale: 1.0
+ocr_confidence_threshold: 0.7

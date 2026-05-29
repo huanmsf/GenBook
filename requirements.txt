@@ -1,0 +1,18 @@
+# GenBook dependencies
+PyMuPDF>=1.23.0
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+paddlepaddle>=2.5.0
+paddleocr>=2.7.0
+reportlab>=4.0.0
+PyYAML>=6.0
+numpy>=1.24.0
+pytest>=7.4.0
+
+# OCR 后端（按需安装其中一个，通过环境变量 OCR_BACKEND 切换）
+# 百度智能云（推荐，国内首选，OCR_BACKEND=baidu）：
+baidu-aip>=2.2.18
+# 腾讯云（OCR_BACKEND=tencent）：
+# tencentcloud-sdk-python-ocr>=3.0.0
+# Google Cloud（需科学上网，OCR_BACKEND=google）：
+# google-cloud-vision>=3.4.0
