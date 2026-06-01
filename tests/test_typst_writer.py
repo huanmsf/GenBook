@@ -169,18 +169,18 @@ class TestCreateTypst:
         content = open(typ_path, encoding="utf-8").read()
         assert "STKaiTi" in content
 
-    def test_blank_template_uses_vcol_grid(self, tmp_path):
-        """blank 模板：无边框鱼尾，使用 vcol+grid 真竖排。"""
+    def test_blank_template_uses_vcol_place(self, tmp_path):
+        """blank 模板：无边框鱼尾，使用 vcol+#place 真竖排。"""
         pages = [_make_page()]
         typ_path = str(tmp_path / "out.typ")
         create_typst(pages, typ_path, self._default_config())
         content = open(typ_path, encoding="utf-8").read()
         assert "rect(" not in content
         assert "▲" not in content
-        assert "#stack(" in content
+        assert "#place(" in content
         assert "vcol(" in content
         assert "#let vcol" in content
-        assert "dir: rtl" in content
+        assert "#block(" in content
 
     @pytest.mark.skip(reason="classic 模板边框/鱼尾待后期实现")
     def test_classic_template_has_border_and_fish_tail(self, tmp_path):
@@ -207,8 +207,8 @@ class TestCreateTypst:
         typ_path = str(tmp_path / "out.typ")
         create_typst(pages, typ_path, self._default_config())
         content = open(typ_path, encoding="utf-8").read()
-        assert "empty" in content
-        assert "box(width: _cw" in content
+        assert "#block(" in content
+        assert "#place(" in content
 
     def test_image_region_exports_asset(self, tmp_path):
         pages = [_make_page_with_image()]
