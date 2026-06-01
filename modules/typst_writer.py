@@ -157,6 +157,31 @@ def _build_page_block(page: PageData, assets_dir: str,
         all_chars.extend(col.chars)
     recs = _recluster_chars(all_chars, dpi, gap_px=35)
 
+    # ── dy snap：计算每列首字 dy，相差 ≤2字高的列对齐到组内最小值 ──
+    snap_thresh = fs * 2.0   # 2字高阈值
+    raw_dy: list[float] = []
+    for col in recs:
+        if col['chars']:
+            y1_pt = _px_to_pt(col['chars'][0].bbox[1], dpi)
+            raw_dy.append(y1_pt - tian_tou)
+        else:
+            raw_dy.append(0.0)
+
+    # 分组：将所有 dy 排序，相差 ≤ snap_thresh 的归一组，组内取最小值
+    if raw_dy:
+        indexed = sorted(enumerate(raw_dy), key=lambda t: t[1])
+        groups: list[list[int]] = [[indexed[0][0]]]
+        for (idx, dy) in indexed[1:]:
+            if dy - raw_dy[groups[-1][0]] <= snap_thresh:
+                groups[-1].append(idx)
+            else:
+                groups.append([idx])
+        snapped_dy: list[float] = list(raw_dy)
+        for grp in groups:
+            min_dy = min(raw_dy[i] for i in grp)
+            for i in grp:
+                snapped_dy[i] = min_dy
+
     lns: list[str] = []
     if page_index > 0:
         lns += ['#pagebreak()', '']
@@ -174,9 +199,16 @@ def _build_page_block(page: PageData, assets_dir: str,
         lns.append(f'#align(center)[{_escape_typst((htitle + " " + hvol).strip())}]')
         lns.append('')
 
-    lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
+    # 修复1：页码用 #place(bottom+center) 固定在版心底部，不占文档流
+    if show_num:
+        num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
+        lns.append(f'// 版心 block（含页码绝对定位）')
+        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
+        lns.append(f'  #place(bottom + center)[{num}]')
+    else:
+        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
 
-    for col in recs:
+    for ci, col in enumerate(recs):
         n       = len(col['chars'])
         cx_px   = col['col_cx_px']
         order   = col['source_order']
@@ -185,22 +217,18 @@ def _build_page_block(page: PageData, assets_dir: str,
         fw_val  = ns    if ctype == 'note' else fs
         h_pt    = n * fw_val
 
-        # x_left: OCR cx 映射到版心宽度（从左起的偏移）
+        # x_left: OCR cx 映射到版心宽度
         right_off = (page.orig_width_px - cx_px) / page.orig_width_px * banxin_w
         x_left    = banxin_w - right_off - fw_val / 2
 
-        # dy: 首字 y1 换算为相对版心顶部的偏移
-        first_y1_px = col['chars'][0].bbox[1] if col['chars'] else 0
-        first_y1_pt = _px_to_pt(first_y1_px, dpi)
-        dy_pt = first_y1_pt - tian_tou   # 相对版心顶
+        # dy: snap 后的版心顶偏移
+        dy_pt = snapped_dy[ci] if raw_dy else 0.0
 
         text = _escape_typst(''.join(c.text for c in col['chars']))
         lns.append(
             f'  // 列{order:2d}: {ctype:5s}  字数={n:3d}'
             f'  cx={cx_px:.0f}px  x_left={x_left:.1f}pt  dy={dy_pt:.1f}pt'
         )
-        # 修复1：#place 参数直接写 box(...)，不加外层 []
-        # 修复2：vcol 参数名用 fw:
         if text.strip():
             col_body = (f'box(width: {fw_expr}, height: {h_pt:.1f}pt)'
                         f'[#vcol("{text}", fw: {fw_expr})]')
@@ -210,11 +238,6 @@ def _build_page_block(page: PageData, assets_dir: str,
 
     lns.append(']')
     lns.append('')
-
-    if show_num:
-        num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
-        lns.append(f'#align(center)[{num}]')
-        lns.append('')
 
     for ii, ir in enumerate(page.image_regions):
         fn   = f'p{page.page_num}_img_{ii+1:03d}.png'
