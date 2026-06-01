@@ -122,7 +122,7 @@ def _build_header(config: dict) -> str:
         '#let vcol(s, fw: cw) = {',
         '  stack(dir: ttb,',
         '    ..s.clusters().map(c =>',
-        '      box(width: cw, height: cw)[#align(center + horizon)[#c]]',
+        '      box(width: fw, height: fw)[#align(center + horizon)[#c]]',
         '    )',
         '  )',
         '}',
@@ -181,22 +181,32 @@ def _build_page_block(page: PageData, assets_dir: str,
         cx_px   = col['col_cx_px']
         order   = col['source_order']
         ctype   = _classify(n, cx_px, page.orig_width_px)
-        cw_expr = 'ns' if ctype == 'note' else 'cw'
-        cw_val  = ns    if ctype == 'note' else fs
-        h_pt    = n * cw_val
+        fw_expr = 'ns' if ctype == 'note' else 'cw'
+        fw_val  = ns    if ctype == 'note' else fs
+        h_pt    = n * fw_val
+
+        # x_left: OCR cx 映射到版心宽度（从左起的偏移）
         right_off = (page.orig_width_px - cx_px) / page.orig_width_px * banxin_w
-        x_left    = banxin_w - right_off - cw_val / 2
+        x_left    = banxin_w - right_off - fw_val / 2
+
+        # dy: 首字 y1 换算为相对版心顶部的偏移
+        first_y1_px = col['chars'][0].bbox[1] if col['chars'] else 0
+        first_y1_pt = _px_to_pt(first_y1_px, dpi)
+        dy_pt = first_y1_pt - tian_tou   # 相对版心顶
+
         text = _escape_typst(''.join(c.text for c in col['chars']))
         lns.append(
             f'  // 列{order:2d}: {ctype:5s}  字数={n:3d}'
-            f'  cx={cx_px:.0f}px  x_left={x_left:.1f}pt'
+            f'  cx={cx_px:.0f}px  x_left={x_left:.1f}pt  dy={dy_pt:.1f}pt'
         )
-        inner = f'box(width: {cw_expr}, height: {h_pt:.1f}pt)'
+        # 修复1：#place 参数直接写 box(...)，不加外层 []
+        # 修复2：vcol 参数名用 fw:
         if text.strip():
-            inner += f'[#vcol("{text}", cw: {cw_expr})]'
+            col_body = (f'box(width: {fw_expr}, height: {h_pt:.1f}pt)'
+                        f'[#vcol("{text}", fw: {fw_expr})]')
         else:
-            inner += '[]'
-        lns.append(f'  #place(top + left, dx: {x_left:.1f}pt, dy: 0pt)[{inner}]')
+            col_body = f'box(width: {fw_expr}, height: {h_pt:.1f}pt)[]'
+        lns.append(f'  #place(top + left, dx: {x_left:.1f}pt, dy: {dy_pt:.1f}pt, {col_body})')
 
     lns.append(']')
     lns.append('')
