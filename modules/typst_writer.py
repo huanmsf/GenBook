@@ -93,6 +93,7 @@ def _build_header(config: dict) -> str:
     ff  = config.get('font_family', 'STKaiTi')
     fs  = float(config.get('font_size', 12))
     ns  = float(config.get('note_font_size', 8))
+    ls  = float(config.get('line_spacing', 0))
     g   = config.get('guji_layout', {})
     paper       = g.get('paper', 'jis-b5')
     tmpl        = g.get('template', 'blank')
@@ -112,6 +113,7 @@ def _build_header(config: dict) -> str:
         '#set par(leading: 0pt, spacing: 0pt)',
         f'#let cw = {fs:.1f}pt',
         f'#let ns = {ns:.1f}pt',
+        f'#let cs = {ls:.2f}pt  // char_spacing',
         '#set page(',
         f'  paper: "{paper}",',
         f'  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,',
@@ -122,7 +124,7 @@ def _build_header(config: dict) -> str:
         '#let vcol(s, fw: cw) = {',
         '  stack(dir: ttb,',
         '    ..s.clusters().map(c =>',
-        '      box(width: fw, height: fw)[#align(center + horizon)[#c]]',
+        '      box(width: fw, height: fw + cs)[#align(center + horizon)[#c]]',
         '    )',
         '  )',
         '}',
@@ -136,6 +138,7 @@ def _build_page_block(page: PageData, assets_dir: str,
     g    = config.get('guji_layout', {})
     fs   = float(config.get('font_size', 12))
     ns   = float(config.get('note_font_size', 8))
+    ls   = float(config.get('line_spacing', 0))
     tmpl = g.get('template', 'blank')
     show_num  = bool(g.get('show_page_num', True))
     num_style = g.get('page_num_style', 'chinese')
@@ -159,12 +162,14 @@ def _build_page_block(page: PageData, assets_dir: str,
 
     # ── dy snap：计算每列首字 dy，相差 ≤N字高的列对齐到组内最小值 ──
     snap_chars  = float(g.get('snap_chars', 2))
-    snap_thresh = fs * snap_chars
+    snap_thresh = (fs + ls) * snap_chars
+    all_y1 = [_px_to_pt(col['chars'][0].bbox[1], dpi) for col in recs if col['chars']]
+    ocr_y_min = min(all_y1) if all_y1 else 0.0
     raw_dy: list[float] = []
     for col in recs:
         if col['chars']:
             y1_pt = _px_to_pt(col['chars'][0].bbox[1], dpi)
-            raw_dy.append(y1_pt - tian_tou)
+            raw_dy.append(y1_pt - ocr_y_min)
         else:
             raw_dy.append(0.0)
 
@@ -216,11 +221,12 @@ def _build_page_block(page: PageData, assets_dir: str,
         ctype   = _classify(n, cx_px, page.orig_width_px)
         fw_expr = 'ns' if ctype == 'note' else 'cw'
         fw_val  = ns    if ctype == 'note' else fs
-        h_pt    = n * fw_val
+        h_pt    = n * (fw_val + ls)
 
-        # x_left: OCR cx 映射到版心宽度
-        right_off = (page.orig_width_px - cx_px) / page.orig_width_px * banxin_w
-        x_left    = banxin_w - right_off - fw_val / 2
+        # x_left: OCR 列 cx 在文字区域内归一化→版心
+        _acx = [r['col_cx_px'] for r in recs]
+        _xmin = min(_acx); _xmax = max(_acx); _xrng = max(_xmax-_xmin, 1.0)
+        x_left = (cx_px - _xmin) / _xrng * (banxin_w - fw_val)
 
         # dy: snap 后的版心顶偏移
         dy_pt = snapped_dy[ci] if raw_dy else 0.0
