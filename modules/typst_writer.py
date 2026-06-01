@@ -110,19 +110,21 @@ def _build_header(config: dict) -> str:
         '  lang: "zh"',
         ')',
         '#set par(leading: 0pt, spacing: 0pt)',
-        f'#let _cw = {fs:.1f}pt',
-        f'#let _ns = {ns:.1f}pt',
+        f'#let cw = {fs:.1f}pt',
+        f'#let ns = {ns:.1f}pt',
         '#set page(',
         f'  paper: "{paper}",',
         f'  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,',
         f'           left: {shu_kou:.1f}pt, right: {zhuang_ding:.1f}pt)',
         ')',
         '',
-        '// vcol: 逐字竖排',
-        '#let vcol(s, cw: _cw) = {',
-        '  for c in s.clusters() {',
-        '    box(width: cw, height: cw)[#align(center + horizon)[#c]]',
-        '  }',
+        '// vcol: 逐字竖排 — stack(dir: ttb) 保证从上到下',
+        '#let vcol(s, fw: cw) = {',
+        '  stack(dir: ttb,',
+        '    ..s.clusters().map(c =>',
+        '      box(width: cw, height: cw)[#align(center + horizon)[#c]]',
+        '    )',
+        '  )',
         '}',
         '',
     ]
@@ -179,7 +181,7 @@ def _build_page_block(page: PageData, assets_dir: str,
         cx_px   = col['col_cx_px']
         order   = col['source_order']
         ctype   = _classify(n, cx_px, page.orig_width_px)
-        cw_expr = '_ns' if ctype == 'note' else '_cw'
+        cw_expr = 'ns' if ctype == 'note' else 'cw'
         cw_val  = ns    if ctype == 'note' else fs
         h_pt    = n * cw_val
         right_off = (page.orig_width_px - cx_px) / page.orig_width_px * banxin_w
