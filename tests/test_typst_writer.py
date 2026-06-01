@@ -177,9 +177,10 @@ class TestCreateTypst:
         content = open(typ_path, encoding="utf-8").read()
         assert "rect(" not in content
         assert "▲" not in content
-        assert "#grid(" in content
+        assert "#stack(" in content
         assert "vcol(" in content
         assert "#let vcol" in content
+        assert "dir: rtl" in content
 
     @pytest.mark.skip(reason="classic 模板边框/鱼尾待后期实现")
     def test_classic_template_has_border_and_fish_tail(self, tmp_path):
@@ -207,6 +208,7 @@ class TestCreateTypst:
         create_typst(pages, typ_path, self._default_config())
         content = open(typ_path, encoding="utf-8").read()
         assert "empty" in content
+        assert "box(width: _cw" in content
 
     def test_image_region_exports_asset(self, tmp_path):
         pages = [_make_page_with_image()]

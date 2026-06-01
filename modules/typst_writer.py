@@ -1,31 +1,38 @@
 """typst_writer.py — 将 PageData 列表输出为 Typst (.typ) 源文件。
 
-v7：vcol + grid 真竖排方案
----------------------------
-原理：
-  - 每列文字用 vcol() 函数逐字输出，每字之间插入 linebreak()
-  - 使用 #grid(columns: (font_size pt × N), column-gutter: gap) 排列各列
-  - 列宽 = 字号（每列只放一个字宽），行距 = 0
-  - 列顺序 = 从右到左（第1个 grid cell = 最右列）
-  - 空列用 [] 占位，保留原书列节奏
+v8：坐标驱动列高 + 模板驱动列 X 位置
+----------------------------------------
+核心逻辑：
+  1. 每列高度 = 该列字数 × 字号（严格保留 OCR 列字数）
+  2. 每列宽度 = 字号（一个字宽）
+  3. 列的 X 位置 由模板决定，从右到左均匀排列在版心内
+     （不用 OCR 的 x 坐标，因为新排版字号可能和原 PDF 不同）
+  4. 每列用 #box(width, height) 固定尺寸，内容 vcol() 逐字竖排
+  5. 各列用 #stack(dir: ltr, spacing: gap) 从右到左水平排列
 
-生成的 Typst 结构示例：
-  #grid(
-    columns: (14pt, 14pt, 14pt, 14pt),
-    column-gutter: 6pt,
-    // 槽位1（最右）: main  字数=20
-    vcol("國立正周易玩辭叙曰大傳曰君子居則觀其象"),
-    // 槽位2: main  字数=18
-    vcol("子觀其變而玩其占讀易之法盡於此矣易之"),
-    // 槽位3: empty
-    [],
-    // 槽位4: empty
-    [],
+生成的 Typst 结构（blank 模板，港台现代竖版）：
+
+  // === 第 3 页  8列 ===
+  #stack(dir: ltr, spacing: _gap,
+    // 列1（最右）: main  20字
+    box(width: _cw, height: 20 * _cw)[#vcol("國立正周易玩辭叙曰大傳曰君子居則觀其象而玩")],
+    // 列2: main  20字
+    box(width: _cw, height: 20 * _cw)[#vcol("子觀其變而玩其占讀易之法盡於此矣易之道四")],
+    // 列3: empty  占位
+    box(width: _cw, height: _col-h)[],
   )
 
-模板通过 config["guji_layout"]["template"] 选择：
-  blank   — 空白模板（港台现代竖版，当前默认）
-  classic — 经典古籍（双边框＋鱼尾，后期启用）
+注意：
+  - #stack(dir: ltr) 从左到右堆叠，但我们把"最右列"放在数组第一位
+    ⟹ 视觉上第一列在最左边
+    ⟹ 需要把列数组反转（最右列 = source_order 最小 = 放到数组最后）
+    ⟹ 或者用 rtl stack
+
+  实际用 #stack(dir: rtl) — 从右到左堆叠，第一个 box = 最右列，符合古籍习惯。
+
+模板控制：
+  blank   — 空白（港台现代竖版）：无边框，只有天头/地脚/页码
+  classic — 经典古籍（后期）：双边框、鱼尾
 """
 from __future__ import annotations
 import os
@@ -87,25 +94,23 @@ def _to_chinese_numeral(num: int) -> str:
 
 
 def _classify_column(col: TextColumn) -> str:
-    """简单启发式列类型识别。"""
     if col.column_type != "main":
         return col.column_type
-    char_count = len(col.chars)
-    if char_count == 0:
+    n = len(col.chars)
+    if n == 0:
         return "empty"
-    if char_count <= 6:
+    if n <= 6:
         return "title"
     x1, y1, x2, y2 = col.bbox
     col_w = max(1, x2 - x1)
     col_h = max(1, y2 - y1)
-    avg_char_h = col_h / max(char_count, 1)
-    if col_w < avg_char_h * 0.65:
+    if col_w < (col_h / max(n, 1)) * 0.65:
         return "note"
     return "main"
 
 
 # ---------------------------------------------------------------------------
-# file header — 定义 vcol 函数，设置页面和文字参数
+# header
 # ---------------------------------------------------------------------------
 
 def _build_header(config: dict) -> str:
@@ -124,8 +129,9 @@ def _build_header(config: dict) -> str:
     return "\n".join([
         "// GenBook — 自动生成的 Typst 古籍排版文件",
         f"// 模板：{template}  (blank=港台现代竖版 | classic=经典古籍)",
-        "// 排版方式：vcol() 逐字竖排 + #grid 多列，列从右到左",
-        "// 校对：修改 vcol(\"...\") 括号内文字；空列保留为 []",
+        "// 排版方式：vcol() 逐字竖排，#box 固定列高，#stack(dir: rtl) 从右到左",
+        "// 列高由 OCR 字数决定，列 X 由模板均匀分配",
+        "// 校对：修改 vcol(\"...\") 括号内文字；空列保留为空 box",
         "",
         "#set text(",
         f'  font: ("{font_family}", "Noto Serif CJK TC", "SimSun", "Arial Unicode MS"),',
@@ -133,22 +139,21 @@ def _build_header(config: dict) -> str:
         '  lang: "zh"',
         ")",
         "#set par(leading: 0pt, spacing: 0pt)",
-        f"#let _fs = {font_size:.1f}pt         // 正文字号 = 列宽",
-        f"#let _ns = {note_size:.1f}pt         // 夹注字号",
-        f"#let _gap = {col_gap:.1f}pt          // 列间距",
+        f"#let _cw  = {font_size:.1f}pt   // 列宽 = 字号（一字宽）",
+        f"#let _ns  = {note_size:.1f}pt   // 夹注字号",
+        f"#let _gap = {col_gap:.1f}pt     // 列间距",
         f"#set page(",
         f'  paper: "{paper}",',
         f"  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,",
         f"           left: {shu_kou:.1f}pt, right: {zhuang_ding:.1f}pt)",
         ")",
         "",
-        "// vcol：将字符串逐字竖排（每字一行）",
-        "#let vcol(s, fs: _fs) = {",
-        "  set text(size: fs)",
+        "// vcol：将字符串逐字竖排（每字一行，leading=0）",
+        "#let vcol(s, cw: _cw) = {",
         "  let chars = s.clusters()",
+        "  let n = chars.len()",
         "  for (i, c) in chars.enumerate() {",
-        "    c",
-        "    if i < chars.len() - 1 { linebreak() }",
+        "    box(width: cw, height: cw)[#align(center + top)[#c]]",
         "  }",
         "}",
         "",
@@ -170,7 +175,13 @@ def _build_page_block(page: PageData, assets_dir: str, page_index: int, config: 
     header_volume  = guji.get("header_volume", "")
     dpi            = page.dpi
 
-    # 列分类与排序（source_order 从右到左）
+    # 版心高度（pt）— 用于计算空列占位高度
+    tian_tou    = _mm_to_pt(float(guji.get("tian_tou_mm",    25)))
+    di_jiao     = _mm_to_pt(float(guji.get("di_jiao_mm",     20)))
+    page_h_pt   = _mm_to_pt(float(guji.get("page_height_mm", 257)))
+    banxin_h    = page_h_pt - tian_tou - di_jiao
+
+    # 列分类与排序（source_order 从右到左，1=最右）
     cols = sorted(page.text_columns, key=lambda c: c.source_order or 0)
     for idx, col in enumerate(cols, 1):
         if col.source_order == 0:
@@ -200,32 +211,41 @@ def _build_page_block(page: PageData, assets_dir: str, page_index: int, config: 
         lines.append(f"#align(center)[{txt}]")
         lines.append("")
 
-    # grid：列宽 = 字号，N 列
-    col_w_expr = ", ".join(["_fs"] * total_slots)
-    lines.append("#grid(")
-    lines.append(f"  columns: ({col_w_expr}),")
-    lines.append("  column-gutter: _gap,")
-    lines.append("  row-gutter: 0pt,")
-    lines.append("  // 列顺序：槽位1=最右列 → 槽位N=最左列")
+    # stack(dir: rtl)：第一个 box = 最右列，从右到左排列
+    lines.append("#stack(dir: rtl, spacing: _gap,")
 
     for slot_idx in range(total_slots):
         if slot_idx < len(cols):
             col = cols[slot_idx]
             col.slot_index = slot_idx + 1
+            n   = col.expected_char_count or len(col.chars)
+            cw  = "_cw"
+            h_expr = f"{n} * _cw" if n > 0 else f"{banxin_h:.1f}pt"
             text = _escape_typst("".join(c.text for c in col.chars))
+
             lines.append(
                 f"  // 槽位 {slot_idx + 1}: {col.column_type}"
-                f"  原列序={col.source_order}  字数={col.expected_char_count}"
+                f"  原列序={col.source_order}  字数={n}"
             )
             if col.column_type == "note":
-                lines.append(f'  vcol("{text}", fs: _ns),')
+                lines.append(
+                    f'  box(width: _ns, height: {n} * _ns)'
+                    f'[#vcol("{text}", cw: _ns)],'
+                )
             elif text.strip():
-                lines.append(f'  vcol("{text}"),')
+                lines.append(
+                    f'  box(width: {cw}, height: {h_expr})'
+                    f'[#vcol("{text}")],'
+                )
             else:
-                lines.append(f"  [],  // 槽位 {slot_idx + 1}: 内容为空")
+                lines.append(
+                    f"  box(width: {cw}, height: {h_expr})[],  // 空内容列"
+                )
         else:
             lines.append(f"  // 槽位 {slot_idx + 1}: empty（空列占位）")
-            lines.append("  [],")
+            lines.append(
+                f"  box(width: _cw, height: {banxin_h:.1f}pt)[],"
+            )
 
     lines.append(")")
     lines.append("")
@@ -237,7 +257,7 @@ def _build_page_block(page: PageData, assets_dir: str, page_index: int, config: 
         lines.append(f"#align(center)[{numeral}]")
         lines.append("")
 
-    # 图片（附在页面末尾，后期可调整）
+    # 图片
     for img_idx, img_region in enumerate(page.image_regions):
         img_filename = f"p{page.page_num}_img_{img_idx + 1:03d}.png"
         img_path_abs = os.path.join(assets_dir, img_filename)
