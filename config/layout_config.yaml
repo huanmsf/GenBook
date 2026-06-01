@@ -17,7 +17,7 @@ font_path: "fonts/STKAITI.TTF"
 # -- 字号 ----------------------------------------------------------
 font_size: 11
 note_font_size: 7.5
-line_spacing: 1.0
+line_spacing: 1.5
 
 # -- 列间距 --------------------------------------------------------
 column_spacing: 4
