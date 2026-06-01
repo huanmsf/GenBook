@@ -3,15 +3,38 @@
 
 font_family: "STKaiTi"
 font_path: "fonts/STKAITI.TTF"
-font_size: 14
+font_size: 12
+note_font_size: 8
 line_spacing: 1.8
-column_spacing: 10
+column_spacing: 6
 
 page_margin:
   top: 36
   bottom: 36
   left: 36
   right: 36
+
+guji_layout:
+  enabled: true
+  # template 可选值：
+  #   blank   — 空白模板（港台现代竖版，无边框/鱼尾，当前默认）
+  #   classic — 经典古籍模板（双边框、中缝鱼尾，后期启用）
+  template: "blank"
+  paper: "jis-b5"
+  page_width_mm: 182
+  page_height_mm: 257
+  tian_tou_mm: 25
+  di_jiao_mm: 20
+  zhuang_ding_mm: 20
+  shu_kou_mm: 15
+  char_per_col: 20
+  reserve_empty_cols: 1
+  note_col_ratio: 0.6
+  show_page_num: true
+  page_num_style: "chinese"
+  header_title: ""
+  header_volume: ""
+  binding_style: "modern_vertical"
 
 page_size: "original"
 writing_mode: "vertical-rl"

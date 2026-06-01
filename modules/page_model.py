@@ -14,6 +14,14 @@ class CharData:
 class TextColumn:
     bbox: tuple[int, int, int, int]
     chars: list[CharData] = field(default_factory=list)
+    column_type: str = "main"       # main | note | title | empty
+    source_order: int = 0           # OCR 原始列序（从右到左）
+    slot_index: int = 0             # 模板槽位序号（从右到左）
+    expected_char_count: int = 0    # 该列目标字数，默认等于 OCR 识别字数
+
+    def __post_init__(self):
+        if self.expected_char_count == 0:
+            self.expected_char_count = len(self.chars)
 
 
 @dataclass

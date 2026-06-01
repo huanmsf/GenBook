@@ -110,11 +110,34 @@ class TestCreateTypst:
         return {
             "font_family": "STKaiTi",
             "font_path":   "fonts/STKAITI.TTF",
-            "font_size":   14,
+            "font_size":   12,
+            "note_font_size": 8,
             "line_spacing": 1.8,
-            "column_spacing": 10,
+            "column_spacing": 6,
             "page_margin": {"top": 36, "bottom": 36, "left": 36, "right": 36},
             "page_size":   "original",
+            "guji_layout": {
+                "enabled": True,
+                "paper": "jis-b5",
+                "page_width_mm": 182,
+                "page_height_mm": 257,
+                "tian_tou_mm": 25,
+                "di_jiao_mm": 20,
+                "zhuang_ding_mm": 20,
+                "shu_kou_mm": 15,
+                "char_per_col": 20,
+                "reserve_empty_cols": 1,
+                "note_col_ratio": 0.6,
+                "show_border": True,
+                "border_width": "0.5pt",
+                "show_double_border": True,
+                "show_fish_tail": True,
+                "show_page_num": True,
+                "page_num_style": "chinese",
+                "header_title": "周易玩辭",
+                "header_volume": "卷一",
+                "binding_style": "jingzhezhuang",
+            },
         }
 
     def test_creates_typ_file(self, tmp_path):
@@ -137,8 +160,7 @@ class TestCreateTypst:
         typ_path = str(tmp_path / "out.typ")
         create_typst(pages, typ_path, self._default_config())
         content = open(typ_path, encoding="utf-8").read()
-        # 每页有注释标记
-        assert "page 3" in content.lower() or "第 3 页" in content
+        assert "第 3 页" in content
 
     def test_typ_file_font_set(self, tmp_path):
         pages = [_make_page()]
@@ -147,11 +169,49 @@ class TestCreateTypst:
         content = open(typ_path, encoding="utf-8").read()
         assert "STKaiTi" in content
 
+    def test_blank_template_uses_vcol_grid(self, tmp_path):
+        """blank 模板：无边框鱼尾，使用 vcol+grid 真竖排。"""
+        pages = [_make_page()]
+        typ_path = str(tmp_path / "out.typ")
+        create_typst(pages, typ_path, self._default_config())
+        content = open(typ_path, encoding="utf-8").read()
+        assert "rect(" not in content
+        assert "▲" not in content
+        assert "#grid(" in content
+        assert "vcol(" in content
+        assert "#let vcol" in content
+
+    @pytest.mark.skip(reason="classic 模板边框/鱼尾待后期实现")
+    def test_classic_template_has_border_and_fish_tail(self, tmp_path):
+        """classic 模板应有双边框和鱼尾。"""
+        cfg = self._default_config()
+        cfg["guji_layout"]["template"] = "classic"
+        pages = [_make_page()]
+        typ_path = str(tmp_path / "out.typ")
+        create_typst(pages, typ_path, cfg)
+        content = open(typ_path, encoding="utf-8").read()
+        assert "rect(" in content
+        assert "▲" in content
+
+    def test_template_contains_header_and_chinese_page_num(self, tmp_path):
+        pages = [_make_page(page_num=12)]
+        typ_path = str(tmp_path / "out.typ")
+        create_typst(pages, typ_path, self._default_config())
+        content = open(typ_path, encoding="utf-8").read()
+        assert "周易玩辭 卷一" in content
+        assert "十二" in content
+
+    def test_empty_slot_is_reserved(self, tmp_path):
+        pages = [_make_page()]
+        typ_path = str(tmp_path / "out.typ")
+        create_typst(pages, typ_path, self._default_config())
+        content = open(typ_path, encoding="utf-8").read()
+        assert "empty" in content
+
     def test_image_region_exports_asset(self, tmp_path):
         pages = [_make_page_with_image()]
         typ_path = str(tmp_path / "out.typ")
         create_typst(pages, typ_path, self._default_config())
-        # assets 子目录应存在图片文件
         assets_dir = tmp_path / "assets"
         assert assets_dir.exists()
         imgs = list(assets_dir.iterdir())
@@ -169,11 +229,17 @@ class TestCreateTypst:
         typ_path = str(tmp_path / "out.typ")
         create_typst(pages, typ_path, self._default_config())
         content = open(typ_path, encoding="utf-8").read()
-        # pagebreak 应出现在多页输出中
         assert "pagebreak" in content
+
+    def test_odd_even_pages_have_different_binding_side(self, tmp_path):
+        pages = [_make_page(page_num=1), _make_page(page_num=2)]
+        typ_path = str(tmp_path / "out.typ")
+        create_typst(pages, typ_path, self._default_config())
+        content = open(typ_path, encoding="utf-8").read()
+        assert "装订=右→左" in content
+        assert "装订=左→右" in content
 
     def test_empty_pages_creates_file(self, tmp_path):
         typ_path = str(tmp_path / "out.typ")
         create_typst([], typ_path, self._default_config())
         assert os.path.exists(typ_path)
-
