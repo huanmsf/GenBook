@@ -9,9 +9,13 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
-# 输出文件
-output/
+# 输出文件（大体积 PDF 及旧中间产物不提交；调试用 .typ 和 OCR 缓存保留）
+output/*.pdf
+output/assets/
+output/*_out_*.typ
+output/*_cached.typ
+output/TJJY_out_*.pdf
 
-# 字体文件（体积大，按需自行下载）
-fonts/*.ttf
-fonts/*.otf
+# 字体文件（体积较大；用 git add -f 强制加入，或取消注释下面规则忽略）
+# fonts/*.ttf
+# fonts/*.otf
