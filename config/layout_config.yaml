@@ -1,40 +1,71 @@
 # GenBook 排版配置文件
 # 修改此文件即可自定义输出 PDF 的字体、字号、排版等参数
+#
+# 港台现代竖版书籍参考标准（联经、三民、九歌等出版社 B5 菊版）：
+#   纸张：JIS-B5 182x257mm
+#   天头：约 15mm（现代书），古籍才用 25mm+
+#   地脚：约 18mm
+#   装订边：约 18mm
+#   书口边：约 13mm
+#   正文字号：11pt，约 22~23 字/列
+#   列间距：4pt
 
+# -- 字体 ----------------------------------------------------------
 font_family: "STKaiTi"
 font_path: "fonts/STKAITI.TTF"
-font_size: 12
-note_font_size: 8
-line_spacing: 1.8
-column_spacing: 6
 
+# -- 字号 ----------------------------------------------------------
+font_size: 11
+note_font_size: 7.5
+line_spacing: 1.0
+
+# -- 列间距 --------------------------------------------------------
+column_spacing: 4
+
+# -- 旧版 PDF writer 页边距（兼容保留，单位 pt）-------------------
 page_margin:
-  top: 36
-  bottom: 36
-  left: 36
-  right: 36
+  top: 40
+  bottom: 40
+  left: 40
+  right: 40
 
+# -- 古籍/竖版排版核心配置 -----------------------------------------
 guji_layout:
   enabled: true
-  # template 可选值：
-  #   blank   — 空白模板（港台现代竖版，无边框/鱼尾，当前默认）
-  #   classic — 经典古籍模板（双边框、中缝鱼尾，后期启用）
+  # template: blank=现代竖版 | classic=经典古籍（后期）
   template: "blank"
+
+  # 纸张
   paper: "jis-b5"
   page_width_mm: 182
   page_height_mm: 257
-  tian_tou_mm: 25
-  di_jiao_mm: 20
-  zhuang_ding_mm: 20
-  shu_kou_mm: 15
-  char_per_col: 20
-  reserve_empty_cols: 1
-  note_col_ratio: 0.6
+
+  # -- 版面留白（单位 mm）-----------------------------------------
+  # 版心宽 = 182 - 18 - 13 = 151mm
+  # 版心高 = 257 - 15 - 18 = 224mm
+  tian_tou_mm: 15
+  di_jiao_mm: 18
+  zhuang_ding_mm: 18
+  shu_kou_mm: 13
+
+  # -- 列参数 -----------------------------------------------------
+  char_per_col: 22
+  reserve_empty_cols: 0
+  note_col_ratio: 0.65
+
+  # -- 页码 -------------------------------------------------------
   show_page_num: true
   page_num_style: "chinese"
+
+  # -- 天头书名/卷次（留空则不显示）-------------------------------
   header_title: ""
   header_volume: ""
+
+  # -- 装订方向 ---------------------------------------------------
   binding_style: "modern_vertical"
+
+  # -- dy snap 对齐阈值（字数）------------------------------------
+  snap_chars: 2
 
 page_size: "original"
 writing_mode: "vertical-rl"

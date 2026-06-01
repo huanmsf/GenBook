@@ -157,8 +157,9 @@ def _build_page_block(page: PageData, assets_dir: str,
         all_chars.extend(col.chars)
     recs = _recluster_chars(all_chars, dpi, gap_px=35)
 
-    # ── dy snap：计算每列首字 dy，相差 ≤2字高的列对齐到组内最小值 ──
-    snap_thresh = fs * 2.0   # 2字高阈值
+    # ── dy snap：计算每列首字 dy，相差 ≤N字高的列对齐到组内最小值 ──
+    snap_chars  = float(g.get('snap_chars', 2))
+    snap_thresh = fs * snap_chars
     raw_dy: list[float] = []
     for col in recs:
         if col['chars']:
