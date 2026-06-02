@@ -56,6 +56,15 @@ guji_layout:
   reserve_empty_cols: 0
   note_col_ratio: 0.65
 
+  # -- 列类型判断阈值 ------------------------------------------
+  # note_max_chars: 字数<=此值 且 cx<=页宽*note_cx_ratio => 注文列
+  # note_cx_ratio:  注文列cx位置上限（页宽比例，注文夹在正文列中）
+  # title_max_chars: 字数<=此值（且不满足注文条件）=> 标题列
+  note_gap_ratio:  0.55  # 注文列间距阈值比例（邻列间距<中位数×此值→注文列）
+  note_max_chars:  6
+  note_cx_ratio:   0.85
+  title_max_chars: 12
+
   # -- 页码 -------------------------------------------------------
   show_page_num: true
   page_num_style: "chinese"
