@@ -78,7 +78,7 @@ def build_output_path(input_pdf: str, output_name: str | None = None) -> str:
         return output_name
 
     # 自动生成：源文件名 + _out_ + 时间戳
-    stem = os.path.splitext(os.path.basename(input_pdf))[0]
+    stem = os.path.splitext(os.path.basename(input_pdf or "output"))[0]
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return os.path.join("output", f"{stem}_out_{timestamp}.pdf")
 
@@ -100,7 +100,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
     parser.add_argument(
         "input_pdf",
-        help="源 PDF 文件路径（必填）",
+        nargs="?",
+        default=None,
+        help="源 PDF 文件路径（使用 --from-cache 时可省略）",
     )
     parser.add_argument(
         "--output", "-o",
@@ -132,6 +134,13 @@ def parse_args(argv=None) -> argparse.Namespace:
         type=float,
         default=0.7,
         help="OCR 置信度阈值，低于此值的字符将被过滤（默认: 0.7）",
+    )
+    parser.add_argument(
+        "--from-cache",
+        dest="from_cache",
+        default=None,
+        metavar="FILE.ocr.json",
+        help="跳过 OCR，直接从缓存文件重新生成 PDF 和 Typst 源文件",
     )
     return parser.parse_args(argv)
 
@@ -222,7 +231,44 @@ def process(
     create_pdf(all_pages, output_pdf, config)
     log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
 
+    # 保存 OCR 缓存（.ocr.json），可用 --from-cache 重新生成
+    from modules.ocr_cache import save_ocr_cache, cache_path_for
+    cache_file = cache_path_for(output_pdf)
+    save_ocr_cache(all_pages, cache_file)
+    log.info(f"OCR 缓存已保存: {os.path.abspath(cache_file)}")
+
     # 同步生成 Typst 源文件（与 PDF 同目录，扩展名 .typ）
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
+    log.info(f"  编译为 PDF: typst compile \"{os.path.abspath(typ_path)}\"")
+
+
+# ---------------------------------------------------------------------------
+# 从缓存重新生成（跳过 OCR）
+# ---------------------------------------------------------------------------
+
+def process_from_cache(
+    cache_path: str,
+    output_pdf: str,
+    config_path: str = "config/layout_config.yaml",
+) -> None:
+    """从 .ocr.json 缓存直接生成 PDF 和 Typst 文件，无需重跑 OCR。"""
+    from modules.ocr_cache import load_ocr_cache
+    from modules.pdf_writer import load_config, create_pdf
+    from modules.typst_writer import create_typst, build_typ_output_path
+
+    log.info(f"读取 OCR 缓存: {cache_path}")
+    all_pages = load_ocr_cache(cache_path)
+    log.info(f"共 {len(all_pages)} 页")
+
+    config = load_config(config_path)
+
+    log.info(f"生成 PDF: {output_pdf}")
+    create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
+
     typ_path = build_typ_output_path(output_pdf)
     log.info(f"生成 Typst 源文件: {typ_path}")
     create_typst(all_pages, typ_path, config)
@@ -250,15 +296,25 @@ if __name__ == "__main__":
     log.info(f"输出路径: {output_pdf}")
 
     try:
-        process(
-            input_pdf=args.input_pdf,
-            output_pdf=output_pdf,
-            config_path=args.config,
-            dpi=args.dpi,
-            confidence_threshold=args.confidence,
-            page_start=page_start,
-            page_end=page_end,
-        )
+        if args.from_cache:
+            process_from_cache(
+                cache_path=args.from_cache,
+                output_pdf=output_pdf,
+                config_path=args.config,
+            )
+        else:
+            if not args.input_pdf:
+                log.error("请提供源 PDF 路径，或使用 --from-cache 指定缓存文件")
+                sys.exit(1)
+            process(
+                input_pdf=args.input_pdf,
+                output_pdf=output_pdf,
+                config_path=args.config,
+                dpi=args.dpi,
+                confidence_threshold=args.confidence,
+                page_start=page_start,
+                page_end=page_end,
+            )
     except Exception as e:
         log.error(f"处理失败: {e}")
         sys.exit(1)

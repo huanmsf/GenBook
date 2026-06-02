@@ -48,8 +48,8 @@ guji_layout:
   # 版心高 = 257 - 15 - 18 = 224mm
   tian_tou_mm: 40
   di_jiao_mm: 30
-  zhuang_ding_mm: 10
-  shu_kou_mm: 20
+  zhuang_ding_mm: 30
+  shu_kou_mm: 30
 
   # -- 列参数 -----------------------------------------------------
   char_per_col: 22
@@ -67,7 +67,7 @@ guji_layout:
 
   # -- 页码 -------------------------------------------------------
   show_page_num: true
-  page_num_style: "chinese"
+  page_num_style: "arabic"
 
   # -- 天头书名/卷次（留空则不显示）-------------------------------
   header_title: ""

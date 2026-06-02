@@ -308,11 +308,12 @@ def _build_page_block(page: PageData, assets_dir: str,
         lns.append('')
 
     num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
-    # 空白页（无任何列）：用 #v 撑高度 + 页码，避免 #block 导致的双空白页
+    # 空白页（无任何列）：用 #block 精确占满一页，#place 放页码
     if not recs:
+        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
         if show_num:
-            lns.append(f'#place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
-        lns.append(f'#v({banxin_h:.1f}pt)')
+            lns.append(f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
+        lns.append(']')
         return '\n'.join(lns)
     # 有内容的页：用固定尺寸 block 承载所有绝对定位列
     lns.append(f'// 版心 block（含页码绝对定位）')
@@ -334,8 +335,9 @@ def _build_page_block(page: PageData, assets_dir: str,
         col_step = fs + col_spacing      # 统一用正文字号，保证 note 列不错位
         x_left   = banxin_w - fw_val - (order - 1) * col_step
 
-        # dy: snap 后的版心顶偏移
+        # dy: snap 后的版心顶偏移，clamp 确保 box 不超出版心底部
         dy_pt = snapped_dy[ci] if raw_dy else 0.0
+        dy_pt = max(0.0, min(dy_pt, banxin_h - h_pt))
 
         text = _escape_typst(''.join(c.text for c in col['chars']))
         lns.append(
