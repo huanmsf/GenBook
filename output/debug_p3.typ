@@ -1,7 +1,12 @@
 // GenBook v9 — 字符坐标重分列 + place 绝对定位竖排
 // 模板：blank  正文:14.0pt  纸张:jis-b5
 
-// ── 全局文字设置 ─────────────────────────────────────
+// ── #set 规则放最前（避免中间空行产生额外空页）──────────
+#set page(
+  paper: "jis-b5",
+  margin: (top: 113.4pt, bottom: 85.0pt,
+           left: 56.7pt, right: 28.3pt)
+)
 #set text(
   font: ("STKaiTi", "Noto Serif CJK TC", "SimSun"),
   size: 14.0pt,
@@ -9,42 +14,31 @@
 )
 #set par(leading: 0pt, spacing: 0pt)
 
-// ── 纸张与版心 ───────────────────────────────────────
-#set page(
-  paper: "jis-b5",
-  margin: (top: 113.4pt, bottom: 85.0pt,
-           left: 56.7pt, right: 28.3pt)
-)
-
 // ── 字号变量（修改 config/layout_config.yaml → styles 节即可）──
-#let cw          = 14.00pt   // 正文 main（基准字号）
-#let heading_fw  = 21.00pt   // 大標題 heading（×1.5）
-#let title_fw    = 18.20pt   // 篇章標題 title（×1.3）
-#let subtitle_fw = 14.00pt   // 副標題 subtitle（×1.0）
-#let author_fw   = 11.20pt   // 著者 author（×0.8）
-#let interp_fw   = 11.20pt   // 注疏 interp（×0.8）
-#let note_fw     = 7.56pt   // 夾注 note（×0.54，≈½正文）
-#let ns          = 7.56pt   // 同 note_fw（兼容旧写法）
-#let pagenum_fw  = 9.80pt   // 頁碼 pagenum（×0.7）
-#let cs_r        = 0.2000   // 字格行距比例（字高 × (1+cs_r) = 字格高）
+#let cw          = 14.00pt
+#let heading_fw  = 21.00pt
+#let title_fw    = 18.20pt
+#let subtitle_fw = 14.00pt
+#let author_fw   = 11.20pt
+#let interp_fw   = 11.20pt
+#let note_fw     = 7.56pt
+#let ns          = 7.56pt
+#let pagenum_fw  = 9.80pt
+#let cs_r        = 0.2000
 
-// ── 核心竖排函数 vcol ────────────────────────────────
-// 用法：#vcol("文字")                   ← 正文字号（默认）
-//       #vcol("文字", fw: title_fw)    ← 篇章標題
-//       #vcol("文字", fw: note_fw)     ← 夾注
-//       #vcol("文字", fw: heading_fw)  ← 大標題
+// ── 核心竖排函数 vcol ────────────────────────────────────
+// #vcol("文字")               正文  | #vcol("文字", fw: title_fw)  篇章標題
+// #vcol("文字", fw: note_fw)  夾注  | #vcol("文字", fw: heading_fw) 大標題
 #let vcol(s, fw: cw) = {
   stack(dir: ttb,
     ..s.clusters().map(c =>
-      box(width: fw, height: fw * (1 + cs_r))
-        [#align(center + horizon)[#text(size: fw)[#c]]]
+      box(width: fw, height: fw * (1 + cs_r))[#align(center + horizon)[#text(size: fw)[#c]]]
     )
   )
 }
 
-// ── 快捷样式函数（v前缀=竖排，避免与 Typst 内置名冲突）──
-// 用法：#vmain("正文")  #vtitle("標題")  #vnote("夾注")
-//       #vheading("大標")  #vauthor("著者")  #vinterp("注疏")
+// ── 快捷样式函数（v前缀，避免与 Typst 内置名冲突）────────
+// #vmain("正文") #vtitle("標題") #vnote("夾注") #vheading("大標") #vauthor("著者")
 #let vmain(s)     = vcol(s, fw: cw)
 #let vheading(s)  = vcol(s, fw: heading_fw)
 #let vtitle(s)    = vcol(s, fw: title_fw)
