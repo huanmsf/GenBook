@@ -29,10 +29,10 @@
 #let cs_r        = 0.2000   // 字格行距比例（字高 × (1+cs_r) = 字格高）
 
 // ── 核心竖排函数 vcol ────────────────────────────────
-// 用法：#vcol("文字")          ← 正文字号
-//       #vcol("文字", fw: title_fw)  ← 篇章標題
-//       #vcol("文字", fw: note_fw)   ← 夾注
-//       #vcol("文字", fw: heading_fw) ← 大標題
+// 用法：#vcol("文字")                   ← 正文字号（默认）
+//       #vcol("文字", fw: title_fw)    ← 篇章標題
+//       #vcol("文字", fw: note_fw)     ← 夾注
+//       #vcol("文字", fw: heading_fw)  ← 大標題
 #let vcol(s, fw: cw) = {
   stack(dir: ttb,
     ..s.clusters().map(c =>
@@ -42,15 +42,16 @@
   )
 }
 
-// ── 快捷样式函数（直接使用，无需记忆变量名）─────────
-// 示例：#main("正文文字")  #title("標題")  #note("夾注") 
-#let main(s)     = vcol(s, fw: cw)
-#let heading(s)  = vcol(s, fw: heading_fw)
-#let title(s)    = vcol(s, fw: title_fw)
-#let subtitle(s) = vcol(s, fw: subtitle_fw)
-#let author(s)   = vcol(s, fw: author_fw)
-#let interp(s)   = vcol(s, fw: interp_fw)
-#let note(s)     = vcol(s, fw: note_fw)
+// ── 快捷样式函数（v前缀=竖排，避免与 Typst 内置名冲突）──
+// 用法：#vmain("正文")  #vtitle("標題")  #vnote("夾注")
+//       #vheading("大標")  #vauthor("著者")  #vinterp("注疏")
+#let vmain(s)     = vcol(s, fw: cw)
+#let vheading(s)  = vcol(s, fw: heading_fw)
+#let vtitle(s)    = vcol(s, fw: title_fw)
+#let vsubtitle(s) = vcol(s, fw: subtitle_fw)
+#let vauthor(s)   = vcol(s, fw: author_fw)
+#let vinterp(s)   = vcol(s, fw: interp_fw)
+#let vnote(s)     = vcol(s, fw: note_fw)
 
 // === 第 3 页  blank  重分列=12列  原PDF=479x872pt  版心=431x530pt  装订=右→左 ===
 

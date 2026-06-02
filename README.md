@@ -195,13 +195,13 @@ GenBook 在生成的 `.typ` 文件中内建了一套**完整的竖排样式函�
 
 | 函数 | 变量 | 用途 | 默认字号（×14pt）|
 |---|---|---|---|
-| `#main("…")` | `cw` | 正文主体 | **14pt**（基准） |
-| `#heading("…")` | `heading_fw` | 大標題（卷名、書名大字） | **21pt**（×1.5）|
-| `#title("…")` | `title_fw` | 篇章標題（章節名） | **18.2pt**（×1.3）|
-| `#subtitle("…")` | `subtitle_fw` | 副標題（標題下說明） | **14pt**（×1.0）|
-| `#author("…")` | `author_fw` | 著者 / 撰者 / 注者 | **11.2pt**（×0.8）|
-| `#interp("…")` | `interp_fw` | 注疏 / 疏文（隨文解說） | **11.2pt**（×0.8）|
-| `#note("…")` | `note_fw` | 夾注（雙行小字，≈½正文） | **7.6pt**（×0.54）|
+| `#vmain("…")` | `cw` | 正文主体 | **14pt**（基准） |
+| `#vheading("…")` | `heading_fw` | 大標題（卷名、書名大字） | **21pt**（×1.5）|
+| `#vtitle("…")` | `title_fw` | 篇章標題（章節名） | **18.2pt**（×1.3）|
+| `#vsubtitle("…")` | `subtitle_fw` | 副標題（標題下說明） | **14pt**（×1.0）|
+| `#vauthor("…")` | `author_fw` | 著者 / 撰者 / 注者 | **11.2pt**（×0.8）|
+| `#vinterp("…")` | `interp_fw` | 注疏 / 疏文（隨文解說） | **11.2pt**（×0.8）|
+| `#vnote("…")` | `note_fw` | 夾注（雙行小字，≈½正文） | **7.6pt**（×0.54）|
 
 所有字号从 `config/layout_config.yaml` 的 `styles` 节读取，**修改配置后重新生成即自动更新**。
 
@@ -220,17 +220,17 @@ GenBook 在生成的 `.typ` 文件中内建了一套**完整的竖排样式函�
 
 // 改为篇章標題
 #place(top + left, dx: 379.5pt, dy: 0.0pt,
-  box(width: title_fw, height: 70.9pt)[#title("周易玩辭")])
+  box(width: title_fw, height: 70.9pt)[#vtitle("周易玩辭")])
 //   ↑ width 改用对应 fw 变量  ↑ height 重算：字数(4) × title_fw × (1+cs_r)
 //                                          = 4 × 18.2 × 1.20 = 87.4pt
 
 // 改为大標題
 #place(top + left, dx: 379.5pt, dy: 0.0pt,
-  box(width: heading_fw, height: 105.0pt)[#heading("周易玩辭")])
+  box(width: heading_fw, height: 105.0pt)[#vheading("周易玩辭")])
 
 // 改為夾注（雙行小字）
 #place(top + left, dx: 245.9pt, dy: 0.0pt,
-  box(width: note_fw, height: 18.2pt)[#note("玩辭")])
+  box(width: note_fw, height: 18.2pt)[#vnote("玩辭")])
 //                      ↑ height = 2 × 7.56 × 1.20 = 18.1pt
 ```
 
