@@ -51,7 +51,7 @@
 
 // 版心 block（含页码绝对定位）
 #block(width: 430.9pt, height: 530.1pt)[
-  #place(bottom + center)[三]
+  #place(bottom + center)[#text(size: pagenum_fw)[三]]
   // 列 1: main   字数=  3  cx=1848px  x_left=416.9pt  dy=185.5pt
   #place(top + left, dx: 416.9pt, dy: 185.5pt, box(width: cw, height: 50.4pt)[#vcol("國立正", fw: cw)])
   // 列 2: main   字数=  8  cx=1774px  x_left=397.9pt  dy=0.0pt

@@ -296,14 +296,14 @@ def _build_page_block(page: PageData, assets_dir: str,
     # 空白页（无任何列）：用 #v 撑高度 + 页码，避免 #block 导致的双空白页
     if not recs:
         if show_num:
-            lns.append(f'#place(bottom + center)[{num}]')
+            lns.append(f'#place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
         lns.append(f'#v({banxin_h:.1f}pt)')
         return '\n'.join(lns)
     # 有内容的页：用固定尺寸 block 承载所有绝对定位列
     lns.append(f'// 版心 block（含页码绝对定位）')
     lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
     if show_num:
-        lns.append(f'  #place(bottom + center)[{num}]')
+        lns.append(f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
 
     for ci, col in enumerate(recs):
         n       = len(col['chars'])
