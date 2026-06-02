@@ -30,11 +30,11 @@
 // 版心 block（含页码绝对定位）
 #block(width: 393.5pt, height: 674.0pt)[
   #place(bottom + center)[三]
-  // 列 1: title  字数=  3  cx=1848px  x_left=379.5pt  dy=185.5pt
+  // 列 1: main   字数=  3  cx=1848px  x_left=379.5pt  dy=185.5pt
   #place(top + left, dx: 379.5pt, dy: 185.5pt, box(width: cw, height: 50.4pt)[#vcol("國立正", fw: cw)])
-  // 列 2: note   字数=  8  cx=1774px  x_left=367.0pt  dy=0.0pt
-  #place(top + left, dx: 367.0pt, dy: 0.0pt, box(width: ns, height: 72.0pt)[#vcol("周易玩辭叙平圖書", fw: ns)])
-  // 列 3: title  字数=  3  cx=1700px  x_left=341.5pt  dy=185.5pt
+  // 列 2: main   字数=  8  cx=1774px  x_left=360.5pt  dy=0.0pt
+  #place(top + left, dx: 360.5pt, dy: 0.0pt, box(width: cw, height: 134.4pt)[#vcol("周易玩辭叙平圖書", fw: cw)])
+  // 列 3: main   字数=  3  cx=1700px  x_left=341.5pt  dy=185.5pt
   #place(top + left, dx: 341.5pt, dy: 185.5pt, box(width: cw, height: 50.4pt)[#vcol("馆收藏", fw: cw)])
   // 列 4: main   字数= 20  cx=1588px  x_left=322.5pt  dy=0.0pt
   #place(top + left, dx: 322.5pt, dy: 0.0pt, box(width: cw, height: 336.0pt)[#vcol("叙曰大傳曰君子居則觀其象而玩其辭動則觀其", fw: cw)])
@@ -48,10 +48,10 @@
   #place(top + left, dx: 246.5pt, dy: 0.0pt, box(width: cw, height: 336.0pt)[#vcol("聖人因象以措辭後學因辭而測象則今之讀易所", fw: cw)])
   // 列 9: main   字数= 20  cx=677px  x_left=227.5pt  dy=0.0pt
   #place(top + left, dx: 227.5pt, dy: 0.0pt, box(width: cw, height: 336.0pt)[#vcol("當反復紬繹精思而深味者莫辭若也於是作周易", fw: cw)])
-  // 列10: title  字数=  2  cx=500px  x_left=208.5pt  dy=0.0pt
+  // 列10: main   字数=  2  cx=500px  x_left=208.5pt  dy=0.0pt
   #place(top + left, dx: 208.5pt, dy: 0.0pt, box(width: cw, height: 33.6pt)[#vcol("玩辭", fw: cw)])
   // 列11: main   字数= 20  cx=320px  x_left=189.5pt  dy=0.0pt
   #place(top + left, dx: 189.5pt, dy: 0.0pt, box(width: cw, height: 336.0pt)[#vcol("皇宋慶元四年歲次戊午秋九月己未江陵項盎述", fw: cw)])
-  // 列12: title  字数=  6  cx=142px  x_left=170.5pt  dy=112.3pt
+  // 列12: main   字数=  6  cx=142px  x_left=170.5pt  dy=112.3pt
   #place(top + left, dx: 170.5pt, dy: 112.3pt, box(width: cw, height: 100.8pt)[#vcol("周易上篇六卷", fw: cw)])
 ]

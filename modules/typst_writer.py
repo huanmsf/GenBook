@@ -82,35 +82,14 @@ def _recluster_chars(
     return result
 
 
-def _classify(
-    n: int,
-    col_cx_px: float,
-    page_w_px: int,
-    is_narrow_gap: bool = False,  # True=该列与邻列间距明显偏窄（注文特征）
-    config: dict | None = None,
-) -> str:
-    """判断列类型：title / note / main / empty。
-
-    判断规则（优先级从高到低）：
-    1. n==0  → empty
-    2. is_narrow_gap=True → note
-       （注文列与邻列间距 < 正文列间距中位数 × note_gap_ratio）
-    3. n <= title_max_chars → title（字少的列，如标题、卷次）
-    4. 其余 → main
-
-    配置参数（config.guji_layout）：
-      note_gap_ratio:  注文间距比例阈值（默认 0.70）
-      title_max_chars: 标题列最大字数（默认 12）
+def _classify(n: int, col_cx_px: float = 0, page_w_px: int = 0,
+              is_narrow_gap: bool = False, config: dict | None = None) -> str:
+    """所有列一律返回 main。注文/标题请在生成的 .typ 文件中手工调整：
+    - 注文列：将 fw: cw 改为 fw: ns，width 改为 ns，height = 字数×ns×(1+cs_r)
+    - 标题列：保持 fw: cw，可直接在 vcol 外加 #text(size: Xpt)[...] 自定义
     """
     if n == 0:
         return 'empty'
-    cfg   = config or {}
-    g     = cfg.get('guji_layout', {})
-    title_max = int(g.get('title_max_chars', 12))
-    if is_narrow_gap:
-        return 'note'
-    if n <= title_max:
-        return 'title'
     return 'main'
 
 
@@ -188,14 +167,6 @@ def _build_page_block(page: PageData, assets_dir: str,
         all_chars.extend(col.chars)
     recs = _recluster_chars(all_chars, dpi, gap_px=35)
 
-    # 计算相邻列 cx 间距的中位数（用于 _classify 注文判断）
-    note_gap_ratio = float(g.get('note_gap_ratio', 0.55))
-    col_cxs = [r['col_cx_px'] for r in recs]
-    if len(col_cxs) >= 2:
-        gaps = sorted([abs(col_cxs[i] - col_cxs[i+1]) for i in range(len(col_cxs)-1)])
-        median_gap = gaps[len(gaps)//2]
-    else:
-        median_gap = 0.0
 
     # ── dy snap：计算每列首字 dy，相差 ≤N字高的列对齐到组内最小值 ──
     snap_chars  = float(g.get('snap_chars', 2))
@@ -244,29 +215,24 @@ def _build_page_block(page: PageData, assets_dir: str,
         lns.append(f'#align(center)[{_escape_typst((htitle + " " + hvol).strip())}]')
         lns.append('')
 
-    # 修复1：页码用 #place(bottom+center) 固定在版心底部，不占文档流
+    num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
+    # 空白页（无任何列）：用 #v 撑高度 + 页码，避免 #block 导致的双空白页
+    if not recs:
+        if show_num:
+            lns.append(f'#place(bottom + center)[{num}]')
+        lns.append(f'#v({banxin_h:.1f}pt)')
+        return '\n'.join(lns)
+    # 有内容的页：用固定尺寸 block 承载所有绝对定位列
+    lns.append(f'// 版心 block（含页码绝对定位）')
+    lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
     if show_num:
-        num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
-        lns.append(f'// 版心 block（含页码绝对定位）')
-        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
         lns.append(f'  #place(bottom + center)[{num}]')
-    else:
-        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
 
     for ci, col in enumerate(recs):
         n       = len(col['chars'])
         cx_px   = col['col_cx_px']
         order   = col['source_order']
-        # 判断是否为注文列：两侧与邻列间距都 < 中位数×note_gap_ratio
-        ci_idx    = recs.index(col)
-        left_gap  = abs(col_cxs[ci_idx] - col_cxs[ci_idx-1]) if ci_idx > 0               else float('inf')
-        right_gap = abs(col_cxs[ci_idx] - col_cxs[ci_idx+1]) if ci_idx < len(col_cxs)-1 else float('inf')
-        thresh    = median_gap * note_gap_ratio
-        # 注文列特征：两侧间距都比正文列间距窄（夹在两列正文之间）
-        is_narrow = (median_gap > 0
-                     and left_gap  < thresh
-                     and right_gap < thresh)
-        ctype   = _classify(n, cx_px, page.orig_width_px, is_narrow, config)
+        ctype   = _classify(n)
         fw_expr = 'ns' if ctype == 'note' else 'cw'
         fw_val  = ns    if ctype == 'note' else fs
         ls_ratio = ls / fs  # 相对行距比例
