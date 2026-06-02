@@ -1,29 +1,56 @@
 // GenBook v9 — 字符坐标重分列 + place 绝对定位竖排
-// 模板：blank
+// 模板：blank  正文:14.0pt  纸张:jis-b5
 
+// ── 全局文字设置 ─────────────────────────────────────
 #set text(
   font: ("STKaiTi", "Noto Serif CJK TC", "SimSun"),
   size: 14.0pt,
   lang: "zh"
 )
 #set par(leading: 0pt, spacing: 0pt)
-#let cw = 14.0pt
-#let ns = 7.5pt
-#let cs_r = 0.2000  // char_spacing ratio (=2.80pt / 14.0pt)
+
+// ── 纸张与版心 ───────────────────────────────────────
 #set page(
   paper: "jis-b5",
   margin: (top: 113.4pt, bottom: 85.0pt,
            left: 56.7pt, right: 28.3pt)
 )
 
-// vcol: 逐字竖排 — stack(dir: ttb) 保证从上到下
+// ── 字号变量（修改 config/layout_config.yaml → styles 节即可）──
+#let cw          = 14.00pt   // 正文 main（基准字号）
+#let heading_fw  = 21.00pt   // 大標題 heading（×1.5）
+#let title_fw    = 18.20pt   // 篇章標題 title（×1.3）
+#let subtitle_fw = 14.00pt   // 副標題 subtitle（×1.0）
+#let author_fw   = 11.20pt   // 著者 author（×0.8）
+#let interp_fw   = 11.20pt   // 注疏 interp（×0.8）
+#let note_fw     = 7.56pt   // 夾注 note（×0.54，≈½正文）
+#let ns          = 7.56pt   // 同 note_fw（兼容旧写法）
+#let pagenum_fw  = 9.80pt   // 頁碼 pagenum（×0.7）
+#let cs_r        = 0.2000   // 字格行距比例（字高 × (1+cs_r) = 字格高）
+
+// ── 核心竖排函数 vcol ────────────────────────────────
+// 用法：#vcol("文字")          ← 正文字号
+//       #vcol("文字", fw: title_fw)  ← 篇章標題
+//       #vcol("文字", fw: note_fw)   ← 夾注
+//       #vcol("文字", fw: heading_fw) ← 大標題
 #let vcol(s, fw: cw) = {
   stack(dir: ttb,
     ..s.clusters().map(c =>
-      box(width: fw, height: fw * (1 + cs_r))[#align(center + horizon)[#text(size: fw)[#c]]]
+      box(width: fw, height: fw * (1 + cs_r))
+        [#align(center + horizon)[#text(size: fw)[#c]]]
     )
   )
 }
+
+// ── 快捷样式函数（直接使用，无需记忆变量名）─────────
+// 示例：#main("正文文字")  #title("標題")  #note("夾注") 
+#let main(s)     = vcol(s, fw: cw)
+#let heading(s)  = vcol(s, fw: heading_fw)
+#let title(s)    = vcol(s, fw: title_fw)
+#let subtitle(s) = vcol(s, fw: subtitle_fw)
+#let author(s)   = vcol(s, fw: author_fw)
+#let interp(s)   = vcol(s, fw: interp_fw)
+#let note(s)     = vcol(s, fw: note_fw)
 
 // === 第 3 页  blank  重分列=12列  原PDF=479x872pt  版心=431x530pt  装订=右→左 ===
 

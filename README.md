@@ -17,7 +17,7 @@
 4. [配置字体](#4-配置字体)
 5. [运行转换](#5-运行转换)
 6. [排版参数说明](#6-排版参数说明)
-7. [正文 / 注文 / 标题调整指南](#7-正文--注文--标题调整指南)
+7. [版面元素样式系统](#7-版面元素样式系统)
 8. [目录结构](#8-目录结构)
 9. [注意事项](#9-注意事项)
 
@@ -185,137 +185,143 @@ ocr_confidence_threshold: 0.7   # OCR 置信度阈值（同 --confidence）
 
 ---
 
-## 7. 正文 / 注文 / 标题调整指南
+## 7. 版面元素样式系统
 
-生成的 `.typ` 文件中每一列都被自动标注了类型（`main` / `note` / `title`），不同类型会
-用不同字号渲染：
+GenBook 在生成的 `.typ` 文件中内建了一套**完整的竖排样式函数库**，覆盖港台出版常见排版元素。
 
-| 类型 | 含义 | Typst 变量 | 默认字号 |
+---
+
+### 7.1 样式元素一览
+
+| 函数 | 变量 | 用途 | 默认字号（×14pt）|
 |---|---|---|---|
-| `main` | 正文列 | `fw: cw`（`cw = font_size`） | 14pt（同正文） |
-| `note` | 注文列（双行小字） | `fw: ns`（`ns = note_font_size`） | 7.5pt（正文½） |
-| `title` | 标题 / 卷次列 | `fw: cw` | 14pt（同正文） |
+| `#main("…")` | `cw` | 正文主体 | **14pt**（基准） |
+| `#heading("…")` | `heading_fw` | 大標題（卷名、書名大字） | **21pt**（×1.5）|
+| `#title("…")` | `title_fw` | 篇章標題（章節名） | **18.2pt**（×1.3）|
+| `#subtitle("…")` | `subtitle_fw` | 副標題（標題下說明） | **14pt**（×1.0）|
+| `#author("…")` | `author_fw` | 著者 / 撰者 / 注者 | **11.2pt**（×0.8）|
+| `#interp("…")` | `interp_fw` | 注疏 / 疏文（隨文解說） | **11.2pt**（×0.8）|
+| `#note("…")` | `note_fw` | 夾注（雙行小字，≈½正文） | **7.6pt**（×0.54）|
+
+所有字号从 `config/layout_config.yaml` 的 `styles` 节读取，**修改配置后重新生成即自动更新**。
 
 ---
 
-### 7.1 自动分类逻辑
+### 7.2 在 `.typ` 文件中使用
 
-程序通过以下规则自动判断：
+生成的每一列默认是 `#vcol("文字", fw: cw)`（正文）。把它替换为对应的快捷函数或带 `fw:` 参数的写法即可：
 
-1. **注文列（`note`）**：与左右两侧邻列的 OCR cx 间距都 < 全页中位数间距 × `note_gap_ratio`（默认 0.55）  
-   → 注文夹在两正文列之间，间距明显偏窄
-2. **标题列（`title`）**：字数 ≤ `title_max_chars`（默认 12）
-3. **正文列（`main`）**：其余所有列
+#### 方法 A：快捷函数（推荐，语义清晰）
 
-> ⚠️ **自动分类并不总是准确**，尤其是：
-> - 书名页、序页等非常规版式
-> - 标题列与正文列相邻时被误判为注文
-> - 注文列字数超过 12 字时被判为正文
+```typst
+// 原始生成（正文）
+#place(top + left, dx: 379.5pt, dy: 0.0pt,
+  box(width: cw, height: 50.4pt)[#vcol("周易玩辭", fw: cw)])
+
+// 改为篇章標題
+#place(top + left, dx: 379.5pt, dy: 0.0pt,
+  box(width: title_fw, height: 70.9pt)[#title("周易玩辭")])
+//   ↑ width 改用对应 fw 变量  ↑ height 重算：字数(4) × title_fw × (1+cs_r)
+//                                          = 4 × 18.2 × 1.20 = 87.4pt
+
+// 改为大標題
+#place(top + left, dx: 379.5pt, dy: 0.0pt,
+  box(width: heading_fw, height: 105.0pt)[#heading("周易玩辭")])
+
+// 改為夾注（雙行小字）
+#place(top + left, dx: 245.9pt, dy: 0.0pt,
+  box(width: note_fw, height: 18.2pt)[#note("玩辭")])
+//                      ↑ height = 2 × 7.56 × 1.20 = 18.1pt
+```
+
+#### 方法 B：直接指定 fw 参数
+
+```typst
+// 著者行（author 字号）
+box(width: author_fw, height: 80.6pt)[#vcol("江陵項安世述", fw: author_fw)]
+
+// 注疏（interp 字号）
+box(width: interp_fw, height: 134.4pt)[#vcol("程子曰此卦…", fw: interp_fw)]
+```
 
 ---
 
-### 7.2 在 `.typ` 文件中手工修正
-
-生成的每一列注释都标明了类型，如：
-
-```typst
-// 列 2: note   字数=  8  cx=1774px  x_left=367.0pt  dy=0.0pt
-#place(top + left, dx: 367.0pt, dy: 0.0pt, box(width: ns, height: 96.0pt)[#vcol("周易玩辭叙平圖書", fw: ns)])
-```
-
-**将 `note` 列改为 `title`（标题）**：把 `fw: ns` 和 `width: ns` 改为 `fw: cw` 和 `width: cw`，
-并更新 `height`：
-
-```typst
-// 修改前（误判为注文，小字显示）
-#place(top + left, dx: 367.0pt, dy: 0.0pt,
-  box(width: ns, height: 96.0pt)[#vcol("周易玩辭叙平圖書", fw: ns)])
-
-// 修改后（改为标题，正文字号显示）
-#place(top + left, dx: 367.0pt, dy: 0.0pt,
-  box(width: cw, height: 134.4pt)[#vcol("周易玩辭叙平圖書", fw: cw)])
-//   ↑ width 改 cw       ↑ height = 字数(8) × cw × 1.2 = 8 × 14 × 1.2 = 134.4
-```
-
-**将 `main` 列改为 `note`（双行小字注释）**：把 `fw: cw` 改为 `fw: ns`，同时更新宽高：
-
-```typst
-// 修改前（正文大字）
-#place(top + left, dx: 215.0pt, dy: 0.0pt,
-  box(width: cw, height: 33.6pt)[#vcol("玩辭", fw: cw)])
-
-// 修改后（注文小字）
-#place(top + left, dx: 215.0pt, dy: 0.0pt,
-  box(width: ns, height: 18.0pt)[#vcol("玩辭", fw: ns)])
-//   ↑ width 改 ns       ↑ height = 字数(2) × ns × 1.2 = 2 × 7.5 × 1.2 = 18.0
-```
-
-**高度计算公式**：
+### 7.3 高度计算公式
 
 ```
 height = 字数 × fw × (1 + cs_r)
 ```
 
-其中 `cs_r = 0.20`（20% 行距比例，文件头部定义）。
+`cs_r` 定义在文件头（默认 0.2000）。常用速查：
 
-| 情况 | fw | cs_r | 字数=2 | 字数=8 |
+| 字数 | `cw`(14pt) | `title_fw`(18.2pt) | `heading_fw`(21pt) | `note_fw`(7.56pt) |
 |---|---|---|---|---|
-| 正文 / 标题 | `cw = 14pt` | 0.20 | `2×14×1.2 = 33.6pt` | `8×14×1.2 = 134.4pt` |
-| 注文 | `ns = 7.5pt` | 0.20 | `2×7.5×1.2 = 18.0pt` | `8×7.5×1.2 = 72.0pt` |
+| 1 | 16.8pt | 21.8pt | 25.2pt | 9.1pt |
+| 2 | 33.6pt | 43.7pt | 50.4pt | 18.1pt |
+| 4 | 67.2pt | 87.4pt | 100.8pt | 36.3pt |
+| 6 | 100.8pt | 131.0pt | 151.2pt | 54.4pt |
+| 8 | 134.4pt | 174.7pt | 201.6pt | 72.6pt |
+| 20 | 336.0pt | — | — | — |
 
 ---
 
-### 7.3 通过配置调整分类阈值
+### 7.4 修改样式字号（通过配置）
 
-在 `config/layout_config.yaml` 的 `guji_layout` 节中修改：
+编辑 `config/layout_config.yaml` 的 `styles` 节，修改倍率后重新生成：
 
 ```yaml
 guji_layout:
-  # 列类型判断阈值
-  note_gap_ratio:  0.55  # 提高此值（如 0.70）可让更多窄间距列被判为注文
-                         # 降低此值（如 0.40）则更保守，减少误判
-  title_max_chars: 12    # 字数≤此值且非注文列 → 标题
-                         # 增大可让更多长标题被识别为 title 而非 main
+  styles:
+    main_scale:      1.00   # 正文基准（不建议改）
+    heading_scale:   1.50   # 大標題 = font_size × 1.50
+    title_scale:     1.30   # 篇章標題 = font_size × 1.30
+    subtitle_scale:  1.00   # 副標題 = font_size × 1.00（同正文）
+    author_scale:    0.80   # 著者 = font_size × 0.80
+    interp_scale:    0.80   # 注疏 = font_size × 0.80
+    note_scale:      0.54   # 夾注 = font_size × 0.54（≈½正文）
+    pagenum_scale:   0.70   # 頁碼 = font_size × 0.70
 ```
 
-**调整建议**：
+例如将大標題改为正文的 1.8 倍：
 
-| 问题现象 | 调整方向 |
-|---|---|
-| 标题列被判为正文（字号偏小）| 增大 `title_max_chars`（如改为 16）|
-| 注文列被判为正文（小字变大）| 降低 `note_gap_ratio`（如改为 0.45）|
-| 正文列被判为注文（大字变小）| 提高 `note_gap_ratio`（如改为 0.65），或手工修改 `.typ` |
-| 整页都是正文（无标题/注文）| 正常现象，该页版式统一，无需调整 |
+```yaml
+    heading_scale:   1.80   # → 14 × 1.80 = 25.2pt
+```
+
+重新生成后，`.typ` 文件头部的 `#let heading_fw` 会自动更新为 `25.20pt`。
 
 ---
 
-### 7.4 在 `.typ` 中直接修改字号
+### 7.5 直接在 `.typ` 文件顶部修改变量值
 
-Typst 的 `#text(size: Xpt)` 可覆盖单列字号，无需修改 `fw` 变量：
+如果不想重跑生成，也可以直接修改 `.typ` 文件头部的 `#let` 声明，立即生效（Tinymist 热更新）：
 
 ```typst
-// 某列希望用特定字号（如 18pt 大标题）
-#place(top + left, dx: 379.5pt, dy: 185.5pt,
-  box(width: 18pt, height: 64.8pt)[
-    #vcol("國立正", fw: 18pt)
-  //                ↑ 直接传入具体 pt 值
-  ])
+// 修改前
+#let title_fw    = 18.20pt   // 篇章標題 title（×1.3）
+
+// 修改后（改为 20pt）
+#let title_fw    = 20.00pt   // 篇章標題 title（×1.3）
 ```
+
+所有使用 `fw: title_fw` 的列会立即以新字号渲染。
 
 ---
 
-### 7.5 关于 `cw` 和 `ns` 变量
+### 7.6 生成文件中的注释说明
 
-`.typ` 文件开头定义了两个全局变量：
+每一列的注释已标明列号、字数、坐标：
 
 ```typst
-#let cw = 14.0pt   // 正文字号（= config.font_size）
-#let ns = 7.5pt    // 注文字号（= config.note_font_size）
-#let cs_r = 0.2000 // 行距比例（0.20 = 字号的 20%）
+// 列 2: main   字数=  8  cx=1774px  x_left=397.9pt  dy=0.0pt
+#place(top + left, dx: 397.9pt, dy: 0.0pt,
+  box(width: cw, height: 134.4pt)[#vcol("周易玩辭叙平圖書", fw: cw)])
 ```
 
-- 修改 `config/layout_config.yaml` 的 `font_size` 和 `note_font_size` 后重新生成，`cw` / `ns` 会自动更新。
-- 也可以直接在 `.typ` 文件里修改这两行，立即生效（不需重新运行 OCR）。
+手工调整时，**只需修改两处**：
+1. `box(width: XX)` → 改为目标元素的 `fw` 变量名
+2. `height` → 用公式重算（或直接用上方速查表）
+3. `#vcol("…", fw: XX)` → 改为目标 `fw` 变量，或直接用快捷函数
 
 ---
 

@@ -146,33 +146,73 @@ def _build_header(config: dict) -> str:
     di_jiao     = _mm_to_pt(float(g.get('di_jiao_mm',     20)))
     zhuang_ding = _mm_to_pt(float(g.get('zhuang_ding_mm', 20)))
     shu_kou     = _mm_to_pt(float(g.get('shu_kou_mm',     15)))
+    # 从 styles 节读取各元素倍率
+    st = g.get('styles', {})
+    def _fw(scale_key: str, default: float) -> float:
+        return round(fs * float(st.get(scale_key, default)), 2)
+    heading_fw  = _fw('heading_scale',  1.50)
+    title_fw    = _fw('title_scale',    1.30)
+    subtitle_fw = _fw('subtitle_scale', 1.00)
+    author_fw   = _fw('author_scale',   0.80)
+    interp_fw   = _fw('interp_scale',   0.80)
+    note_fw     = _fw('note_scale',     0.54)
+    pagenum_fw  = _fw('pagenum_scale',  0.70)
+    cs_r_val    = round(ls / fs, 4)
+
     rows = [
         '// GenBook v9 — 字符坐标重分列 + place 绝对定位竖排',
-        f'// 模板：{tmpl}',
+        f'// 模板：{tmpl}  正文:{fs}pt  纸张:{paper}',
         '',
+        '// ── 全局文字设置 ─────────────────────────────────────',
         '#set text(',
         f'  font: ("{ff}", "Noto Serif CJK TC", "SimSun"),',
         f'  size: {fs:.1f}pt,',
         '  lang: "zh"',
         ')',
         '#set par(leading: 0pt, spacing: 0pt)',
-        f'#let cw = {fs:.1f}pt',
-        f'#let ns = {ns:.1f}pt',
-        f'#let cs_r = {ls/fs:.4f}  // char_spacing ratio (={ls:.2f}pt / {fs:.1f}pt)',
+        '',
+        '// ── 纸张与版心 ───────────────────────────────────────',
         '#set page(',
         f'  paper: "{paper}",',
         f'  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,',
         f'           left: {shu_kou:.1f}pt, right: {zhuang_ding:.1f}pt)',
         ')',
         '',
-        '// vcol: 逐字竖排 — stack(dir: ttb) 保证从上到下',
+        '// ── 字号变量（修改 config/layout_config.yaml → styles 节即可）──',
+        f'#let cw          = {fs:.2f}pt   // 正文 main（基准字号）',
+        f'#let heading_fw  = {heading_fw:.2f}pt   // 大標題 heading（×{st.get("heading_scale",1.50)}）',
+        f'#let title_fw    = {title_fw:.2f}pt   // 篇章標題 title（×{st.get("title_scale",1.30)}）',
+        f'#let subtitle_fw = {subtitle_fw:.2f}pt   // 副標題 subtitle（×{st.get("subtitle_scale",1.00)}）',
+        f'#let author_fw   = {author_fw:.2f}pt   // 著者 author（×{st.get("author_scale",0.80)}）',
+        f'#let interp_fw   = {interp_fw:.2f}pt   // 注疏 interp（×{st.get("interp_scale",0.80)}）',
+        f'#let note_fw     = {note_fw:.2f}pt   // 夾注 note（×{st.get("note_scale",0.54)}，≈½正文）',
+        f'#let ns          = {note_fw:.2f}pt   // 同 note_fw（兼容旧写法）',
+        f'#let pagenum_fw  = {pagenum_fw:.2f}pt   // 頁碼 pagenum（×{st.get("pagenum_scale",0.70)}）',
+        f'#let cs_r        = {cs_r_val:.4f}   // 字格行距比例（字高 × (1+cs_r) = 字格高）',
+        '',
+        '// ── 核心竖排函数 vcol ────────────────────────────────',
+        '// 用法：#vcol("文字")          ← 正文字号',
+        '//       #vcol("文字", fw: title_fw)  ← 篇章標題',
+        '//       #vcol("文字", fw: note_fw)   ← 夾注',
+        '//       #vcol("文字", fw: heading_fw) ← 大標題',
         '#let vcol(s, fw: cw) = {',
         '  stack(dir: ttb,',
         '    ..s.clusters().map(c =>',
-        '      box(width: fw, height: fw * (1 + cs_r))[#align(center + horizon)[#text(size: fw)[#c]]]',
+        '      box(width: fw, height: fw * (1 + cs_r))',
+        '        [#align(center + horizon)[#text(size: fw)[#c]]]',
         '    )',
         '  )',
         '}',
+        '',
+        '// ── 快捷样式函数（直接使用，无需记忆变量名）─────────',
+        '// 示例：#main("正文文字")  #title("標題")  #note("夾注") ',
+        '#let main(s)     = vcol(s, fw: cw)',
+        '#let heading(s)  = vcol(s, fw: heading_fw)',
+        '#let title(s)    = vcol(s, fw: title_fw)',
+        '#let subtitle(s) = vcol(s, fw: subtitle_fw)',
+        '#let author(s)   = vcol(s, fw: author_fw)',
+        '#let interp(s)   = vcol(s, fw: interp_fw)',
+        '#let note(s)     = vcol(s, fw: note_fw)',
         '',
     ]
     return '\n'.join(rows)

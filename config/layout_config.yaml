@@ -79,6 +79,27 @@ guji_layout:
   # -- dy snap 对齐阈值（字数）------------------------------------
   snap_chars: 2
 
+  # ── 版面元素字号（单位：相对正文 font_size 的倍率，0=禁用）----------
+  # 修改这里的值，生成的 .typ 文件里对应的 #let 变量会自动更新。
+  # 在 .typ 文件中使用：将 fw: cw 替换为 fw: title_fw 等。
+  styles:
+    # 正文（主体文字）
+    main_scale:      1.00   # 正文字号 = font_size × 1.00
+    # 篇章大標題（如"第一章"、书名大字）
+    heading_scale:   1.50   # 大標 = font_size × 1.50  → 21pt
+    # 節標題（章节内部标题）
+    title_scale:     1.30   # 標題 = font_size × 1.30  → 18.2pt
+    # 副標題（标题下方的说明行）
+    subtitle_scale:  1.00   # 副標 = font_size × 1.00  → 14pt（同正文）
+    # 著者 / 撰者行
+    author_scale:    0.80   # 著者 = font_size × 0.80  → 11.2pt
+    # 注疏 / 疏文（随文解說，略小于正文）
+    interp_scale:    0.80   # 疏文 = font_size × 0.80  → 11.2pt
+    # 夾注（雙行小字，通常是正文的一半）
+    note_scale:      0.54   # 夾注 = font_size × 0.54  → 7.5pt（≈½正文）
+    # 頁碼
+    pagenum_scale:   0.70   # 頁碼 = font_size × 0.70  → 9.8pt
+
 page_size: "original"
 writing_mode: "vertical-rl"
 image_scale: 1.0
