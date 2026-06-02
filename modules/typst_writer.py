@@ -138,7 +138,8 @@ def _build_page_block(page: PageData, assets_dir: str,
     g    = config.get('guji_layout', {})
     fs   = float(config.get('font_size', 12))
     ns   = float(config.get('note_font_size', 8))
-    ls   = float(config.get('line_spacing', 0))
+    ls          = float(config.get('line_spacing', 0))
+    col_spacing = float(config.get('column_spacing', 4))
     tmpl = g.get('template', 'blank')
     show_num  = bool(g.get('show_page_num', True))
     num_style = g.get('page_num_style', 'chinese')
@@ -163,6 +164,8 @@ def _build_page_block(page: PageData, assets_dir: str,
     # ── dy snap：计算每列首字 dy，相差 ≤N字高的列对齐到组内最小值 ──
     snap_chars  = float(g.get('snap_chars', 2))
     snap_thresh = (fs + ls) * snap_chars
+    all_y1 = [_px_to_pt(col['chars'][0].bbox[1], dpi) for col in recs if col['chars']]
+    ocr_y_min = min(all_y1) if all_y1 else 0.0
     all_y1 = [_px_to_pt(col['chars'][0].bbox[1], dpi) for col in recs if col['chars']]
     ocr_y_min = min(all_y1) if all_y1 else 0.0
     raw_dy: list[float] = []
@@ -223,10 +226,9 @@ def _build_page_block(page: PageData, assets_dir: str,
         fw_val  = ns    if ctype == 'note' else fs
         h_pt    = n * (fw_val + ls)
 
-        # x_left: OCR 列 cx 在文字区域内归一化→版心
-        _acx = [r['col_cx_px'] for r in recs]
-        _xmin = min(_acx); _xmax = max(_acx); _xrng = max(_xmax-_xmin, 1.0)
-        x_left = (cx_px - _xmin) / _xrng * (banxin_w - fw_val)
+        # x_left: 从版心右边起，按 source_order 固定步长从右到左排列
+        col_step = fs + col_spacing      # 统一用正文字号，保证 note 列不错位
+        x_left   = banxin_w - fw_val - (order - 1) * col_step
 
         # dy: snap 后的版心顶偏移
         dy_pt = snapped_dy[ci] if raw_dy else 0.0
@@ -244,7 +246,6 @@ def _build_page_block(page: PageData, assets_dir: str,
         lns.append(f'  #place(top + left, dx: {x_left:.1f}pt, dy: {dy_pt:.1f}pt, {col_body})')
 
     lns.append(']')
-    lns.append('')
 
     for ii, ir in enumerate(page.image_regions):
         fn   = f'p{page.page_num}_img_{ii+1:03d}.png'
