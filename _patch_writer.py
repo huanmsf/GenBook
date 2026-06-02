@@ -1,4 +1,4 @@
-"""Fix: char_spacing default to standard publishing line gap (20% of font size)."""
+"""Fix: vcol uses text(size: fw) so note columns render at ns pt, not 14pt."""
 import pathlib, sys
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -12,35 +12,38 @@ def pat(s, old, new, tag):
     print(f'  MISS: {tag}')
     return s
 
-# ── Fix 1: _build_header — ls 默认改为字号20%（标准出版行距）──────
-# 原: ls = float(config.get('line_spacing', 0))
-# 新: 读出原始值，若<=0则自动取 fs*0.20（标准行间距约为字号20%）
+# ── Fix: vcol 内每个字加 text(size: fw) ────────────────────────────
+# 原：box(width: fw, height: fw + cs)[#align(center + horizon)[#c]]
+# 新：box(width: fw, height: fw + cs)[#align(center + horizon)[#text(size: fw)[#c]]]
+# 这样 note 列传入 fw=ns=7.5pt 时字号也变为 7.5pt
 s = pat(s,
-    "    fs  = float(config.get('font_size', 12))\n"
-    "    ns  = float(config.get('note_font_size', 8))\n"
-    "    ls  = float(config.get('line_spacing', 0))\n"
-    "    g   = config.get('guji_layout', {})",
-    "    fs  = float(config.get('font_size', 12))\n"
-    "    ns  = float(config.get('note_font_size', 8))\n"
-    "    _ls_raw = float(config.get('line_spacing', 0))\n"
-    "    ls  = _ls_raw if _ls_raw > 0 else round(fs * 0.20, 2)  # 默认=字号20%（标准行距）\n"
-    "    g   = config.get('guji_layout', {})",
-    '_build_header ls default')
+    '      box(width: fw, height: fw + cs)[#align(center + horizon)[#c]]',
+    '      box(width: fw, height: fw + cs)[#align(center + horizon)[#text(size: fw)[#c]]]',
+    'vcol text size follows fw')
 
-# ── Fix 2: _build_page_block — 同样处理 ls 默认值 ─────────────────
+# ── 同步修正 cs 计算：note 列的行距应按 ns 算，正文列按 fs 算 ──────
+# cs 目前是全局的，统一按 fs*20%，但 note 列字号是 ns，cs 对 note 显得偏大
+# 方案：在 vcol 内用 cs 比例而不是绝对值——改为相对行距 cs_ratio
+# 具体：把 #let cs = Xpt 改为比例，vcol 里用 fw * cs_ratio
+# 但为简单起见，改用两个变量：cs_main 和 cs_note
 s = pat(s,
-    "    ls          = float(config.get('line_spacing', 0))\n"
-    "    col_spacing = float(config.get('column_spacing', 4))",
-    "    _ls_raw     = float(config.get('line_spacing', 0))\n"
-    "    ls          = _ls_raw if _ls_raw > 0 else round(fs * 0.20, 2)  # 默认=字号20%\n"
-    "    col_spacing = float(config.get('column_spacing', 4))",
-    '_build_page_block ls default')
-
-# ── Fix 3: 生成的 Typst 注释说明 cs 的含义 ────────────────────────
-s = pat(s,
-    "        f'#let cs = {ls:.2f}pt  // char_spacing',",
     "        f'#let cs = {ls:.2f}pt  // char_spacing (line_spacing={_ls_raw}; 0=auto 20% of font)',",
-    'cs comment')
+    "        f'#let cs_r = {ls/fs:.4f}  // char_spacing ratio (={ls:.2f}pt / {fs:.1f}pt)',",
+    'cs to ratio')
+
+# vcol 里从 fw + cs 改为 fw * (1 + cs_r)，这样 note 列行距按 ns 比例算
+s = pat(s,
+    '      box(width: fw, height: fw + cs)[#align(center + horizon)[#text(size: fw)[#c]]]',
+    '      box(width: fw, height: fw * (1 + cs_r))[#align(center + horizon)[#text(size: fw)[#c]]]',
+    'box height uses fw * ratio')
+
+# ── h_pt 也要改为用 ratio ──────────────────────────────────────────
+# 原：h_pt = n * (fw_val + ls)
+# 新：h_pt = n * fw_val * (1 + ls/fs)  但要用 ls_ratio
+s = pat(s,
+    '        h_pt    = n * (fw_val + ls)',
+    '        ls_ratio = ls / fs  # 相对行距比例\n        h_pt    = n * fw_val * (1 + ls_ratio)',
+    'h_pt uses ratio')
 
 p.write_text(s, encoding='utf-8', newline='\r\n')
 print('Done')

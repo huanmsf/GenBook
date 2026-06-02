@@ -114,7 +114,7 @@ def _build_header(config: dict) -> str:
         '#set par(leading: 0pt, spacing: 0pt)',
         f'#let cw = {fs:.1f}pt',
         f'#let ns = {ns:.1f}pt',
-        f'#let cs = {ls:.2f}pt  // char_spacing (line_spacing={_ls_raw}; 0=auto 20% of font)',
+        f'#let cs_r = {ls/fs:.4f}  // char_spacing ratio (={ls:.2f}pt / {fs:.1f}pt)',
         '#set page(',
         f'  paper: "{paper}",',
         f'  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,',
@@ -125,7 +125,7 @@ def _build_header(config: dict) -> str:
         '#let vcol(s, fw: cw) = {',
         '  stack(dir: ttb,',
         '    ..s.clusters().map(c =>',
-        '      box(width: fw, height: fw + cs)[#align(center + horizon)[#c]]',
+        '      box(width: fw, height: fw * (1 + cs_r))[#align(center + horizon)[#text(size: fw)[#c]]]',
         '    )',
         '  )',
         '}',
@@ -226,7 +226,8 @@ def _build_page_block(page: PageData, assets_dir: str,
         ctype   = _classify(n, cx_px, page.orig_width_px)
         fw_expr = 'ns' if ctype == 'note' else 'cw'
         fw_val  = ns    if ctype == 'note' else fs
-        h_pt    = n * (fw_val + ls)
+        ls_ratio = ls / fs  # 相对行距比例
+        h_pt    = n * fw_val * (1 + ls_ratio)
 
         # x_left: 从版心右边起，按 source_order 固定步长从右到左排列
         col_step = fs + col_spacing      # 统一用正文字号，保证 note 列不错位
