@@ -80,13 +80,28 @@ def _mm_to_pt(mm: float) -> float:
 
 
 def _to_chinese_numeral(num: int) -> str:
+    """将任意正整数转为中文数字（支持三位及以上页码）。"""
     digits = '零一二三四五六七八九'
+    units  = ['', '十', '百', '千', '万']
     if num <= 0:  return digits[0]
     if num < 10:  return digits[num]
-    if num == 10: return '十'
-    if num < 20:  return '十' + digits[num % 10]
-    tens, ones = divmod(num, 10)
-    return digits[tens] + '十' + (digits[ones] if ones else '')
+    # 逐位拆解
+    result = ''
+    mag = 1
+    while 10 ** mag <= num:
+        mag += 1
+    for i in range(mag - 1, -1, -1):
+        d = (num // (10 ** i)) % 10
+        if d == 0:
+            if result and result[-1] != '零':
+                result += '零'
+        else:
+            result += digits[d] + units[i]
+    result = result.rstrip('零')
+    # 壹十 → 十
+    if result.startswith('一十'):
+        result = result[1:]
+    return result
 
 
 def _recluster_chars(
