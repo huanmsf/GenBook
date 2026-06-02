@@ -4,6 +4,46 @@ import os
 from modules.page_model import PageData, CharData
 
 
+# 常用纸张尺寸（单位 pt = mm × 72/25.4）
+# 格式：(width_pt, height_pt)
+_PAPER_PT: dict[str, tuple[float, float]] = {
+    "jis-b5":  (515.91, 728.50),   # 182mm × 257mm
+    "jis-b4":  (728.50, 1031.81),  # 257mm × 364mm
+    "a4":      (595.28, 841.89),   # 210mm × 297mm
+    "a5":      (419.53, 595.28),   # 148mm × 210mm
+    "letter":  (612.00, 792.00),
+    "b5":      (498.90, 708.66),   # ISO B5
+}
+
+
+def _paper_content_size(paper: str, tian_tou: float, di_jiao: float,
+                        zhuang_ding: float, shu_kou: float
+                        ) -> tuple[float, float]:
+    """返回版心可用宽高（pt），上限为纸张减边距。"""
+    pw, ph = _PAPER_PT.get(paper.lower(), (515.91, 728.50))
+    return pw - zhuang_ding - shu_kou, ph - tian_tou - di_jiao
+
+
+# 常用纸张尺寸（单位 pt = mm × 72/25.4）
+# 格式：(width_pt, height_pt)
+_PAPER_PT: dict[str, tuple[float, float]] = {
+    "jis-b5":  (515.91, 728.50),   # 182mm × 257mm
+    "jis-b4":  (728.50, 1031.81),  # 257mm × 364mm
+    "a4":      (595.28, 841.89),   # 210mm × 297mm
+    "a5":      (419.53, 595.28),   # 148mm × 210mm
+    "letter":  (612.00, 792.00),
+    "b5":      (498.90, 708.66),   # ISO B5
+}
+
+
+def _paper_content_size(paper: str, tian_tou: float, di_jiao: float,
+                        zhuang_ding: float, shu_kou: float
+                        ) -> tuple[float, float]:
+    """返回版心可用宽高（pt），上限为纸张减边距。"""
+    pw, ph = _PAPER_PT.get(paper.lower(), (515.91, 728.50))
+    return pw - zhuang_ding - shu_kou, ph - tian_tou - di_jiao
+
+
 def build_typ_output_path(pdf_path: str) -> str:
     root, _ = os.path.splitext(pdf_path)
     return root + '.typ'
@@ -157,10 +197,12 @@ def _build_page_block(page: PageData, assets_dir: str,
     di_jiao     = _mm_to_pt(float(g.get('di_jiao_mm',     20)))
     zhuang_ding = _mm_to_pt(float(g.get('zhuang_ding_mm', 20)))
     shu_kou     = _mm_to_pt(float(g.get('shu_kou_mm',     15)))
-    page_w_pt   = _px_to_pt(page.orig_width_px,  dpi)
-    page_h_pt   = _px_to_pt(page.orig_height_px, dpi)
-    banxin_w    = page_w_pt  - zhuang_ding - shu_kou
-    banxin_h    = page_h_pt  - tian_tou    - di_jiao
+    paper       = g.get('paper', 'jis-b5')
+    page_w_pt   = _px_to_pt(page.orig_width_px,  dpi)  # 原扫描件宽
+    page_h_pt   = _px_to_pt(page.orig_height_px, dpi)  # 原扫描件高
+    # 版心尺寸 = 纸张减边距（上限），避免超出目标纸张导致溢出空白页
+    banxin_w, banxin_h = _paper_content_size(
+        paper, tian_tou, di_jiao, zhuang_ding, shu_kou)
 
     all_chars: list[CharData] = []
     for col in page.text_columns:

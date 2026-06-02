@@ -1,4 +1,4 @@
-"""Generate 4-page test and show blank-page area."""
+"""Regenerate debug_p1-4.typ and show key lines."""
 import json, sys, pathlib
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, '.')
@@ -18,7 +18,7 @@ for pd in sorted(data, key=lambda x: x['page_num'])[:4]:
                           orig_height_px=pd['height_px'], dpi=pd['dpi'], text_columns=cols))
 create_typst(pages, 'output/debug_p1-4.typ', cfg)
 s = pathlib.Path('output/debug_p1-4.typ').read_text(encoding='utf-8')
-lines = s.splitlines()
-for i, line in enumerate(lines, 1):
-    if any(x in line for x in ['第 2 页', '#pagebreak', '#v(', '第 3 页', 'place(bottom']):
-        print(f'{i:>4}: {line}')
+print('Generated. Key lines:')
+for i, line in enumerate(s.splitlines(), 1):
+    if any(x in line for x in ['#block', '#v(', '#pagebreak', '===']):
+        print(f'  {i:>4}: {line}')
