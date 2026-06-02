@@ -93,7 +93,8 @@ def _build_header(config: dict) -> str:
     ff  = config.get('font_family', 'STKaiTi')
     fs  = float(config.get('font_size', 12))
     ns  = float(config.get('note_font_size', 8))
-    ls  = float(config.get('line_spacing', 0))
+    _ls_raw = float(config.get('line_spacing', 0))
+    ls  = _ls_raw if _ls_raw > 0 else round(fs * 0.20, 2)  # 默认=字号20%（标准行距）
     g   = config.get('guji_layout', {})
     paper       = g.get('paper', 'jis-b5')
     tmpl        = g.get('template', 'blank')
@@ -113,7 +114,7 @@ def _build_header(config: dict) -> str:
         '#set par(leading: 0pt, spacing: 0pt)',
         f'#let cw = {fs:.1f}pt',
         f'#let ns = {ns:.1f}pt',
-        f'#let cs = {ls:.2f}pt  // char_spacing',
+        f'#let cs = {ls:.2f}pt  // char_spacing (line_spacing={_ls_raw}; 0=auto 20% of font)',
         '#set page(',
         f'  paper: "{paper}",',
         f'  margin: (top: {tian_tou:.1f}pt, bottom: {di_jiao:.1f}pt,',
@@ -138,7 +139,8 @@ def _build_page_block(page: PageData, assets_dir: str,
     g    = config.get('guji_layout', {})
     fs   = float(config.get('font_size', 12))
     ns   = float(config.get('note_font_size', 8))
-    ls          = float(config.get('line_spacing', 0))
+    _ls_raw     = float(config.get('line_spacing', 0))
+    ls          = _ls_raw if _ls_raw > 0 else round(fs * 0.20, 2)  # 默认=字号20%
     col_spacing = float(config.get('column_spacing', 4))
     tmpl = g.get('template', 'blank')
     show_num  = bool(g.get('show_page_num', True))

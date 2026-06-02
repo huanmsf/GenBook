@@ -17,7 +17,10 @@ font_path: "fonts/STKAITI.TTF"
 # -- 字号 ----------------------------------------------------------
 font_size: 14
 note_font_size: 7.5
-line_spacing: 4
+# line_spacing: 字间距(pt)
+#   0  = 自动，取 font_size × 20%（标准出版行距，推荐）
+#   正数 = 手动指定额外字间距 pt，如 3 表示每字格多出 3pt 高度
+line_spacing: 0
 
 # -- 列间距 --------------------------------------------------------
 column_spacing: 5
