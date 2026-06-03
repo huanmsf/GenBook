@@ -193,7 +193,7 @@ _FLOW_BANNER = """\
 // ║  · 删除/移动列：直接剪切 grid 子项到目标位置                     ║
 // ║  · 列首字下沉（dy）：修改 pad(top: Xpt) 中的值                  ║
 // ║  · 换页：把 grid 子项剪切到下一页的 grid 开头                    ║
-// ║  · 起始位置：所有页统一 align(right)，内容从右侧书口起排列         ║
+// ║  · 子项顺序=视觉右→左（第1项=最右列）；插列后右侧列不动，左侧左移  ║
 // ╚══════════════════════════════════════════════════════════════════╝
 """
 
@@ -252,12 +252,14 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         col_h = page.block_h_pt
         bw = page.block_w_pt
 
-        # OCR 列按 dx 降序排列（右→左）；grid 子项须按 dx 升序（物理左→右）
-        # 配合 #align(right) 后，视觉顺序与原版完全一致
-        sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt)  # 升序：左→右
+        # 子项按 dx 降序排列（右→左），配合 text(dir:rtl) 后：
+        #   第1子项渲染在最右侧（书口），第N子项在最左侧
+        #   插入位置K的子项 → K左侧（远书口）的列自动左移，K右侧不动 ✓
+        #   溢出列出现在左侧（版心外），Tinymist 可见 ✓
+        sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt, reverse=True)  # 降序：右→左
         col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
 
-        # 计算版心最多能放几列（用 cw 估算，fw 不同列取均值）
+        # 计算版心最多能放几列（用平均 fw 估算）
         avg_fw = sum(14.0 if c.fw_var == 'cw' else
                      21.0 if 'heading' in c.fw_var else
                      18.2 if 'title' in c.fw_var else
@@ -266,19 +268,22 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         max_cols = int(bw / (avg_fw + col_spacing_pt))
         overflow = max(0, n - max_cols)
         cap_note = (f'容量{max_cols}列/当前{n}列  '
-                    + (f'⚠ 溢出{overflow}列→右边可见' if overflow else '✓ 未溢出'))
+                    + (f'⚠ 溢出{overflow}列→左边可见' if overflow else '✓ 未溢出'))
 
-        # 所有页统一从右起排列，右侧留白固定一致
-        # #block 只限高度不限宽度（clip:false 默认），溢出列在 Tinymist 可见
+        # #block 只限高度不限宽度，溢出列在 Tinymist 左边可见
+        # text(dir:rtl) 让 grid 从右向左展开，第1子项=最右列
 
         out += [
             f'// 版心 {bw:.1f}×{col_h:.1f}pt  {cap_note}',
-            f'// ★ 插列：在任意位置加子项，左侧列自动左移；溢出时列跑到右边距外',
-            f'// ★ 删列：删子项，右侧列自动右移（向书口侧靠拢）',
+            f'// ★ 子项顺序=视觉右→左（第1项=最右/书口列，最后1项=最左列）',
+            f'// ★ 插列：在位置K前加子项 → K及其左侧自动左移，右侧不动',
+            f'// ★ 删列：删子项 → 右侧列自动右移（向书口靠拢）',
             f'// ★ 空列：插入 []  移列：剪切子项到目标位置',
-            f'#block(height: {col_h:.1f}pt)[  // 仅限高度；宽度自由，溢出列可见',
+            f'#block(height: {col_h:.1f}pt)[  // 仅限高度；宽度自由，溢出列左边可见',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
-            f'  #align(right)[  // 统一：内容从右侧起排，右边留白一致',
+            f'  // 第1子项=最右列（书口侧），子项顺序=视觉右→左',
+            f'  // dir:rtl 让 grid 从右向左铺列；插入新列时右侧不动，左侧左移',
+            f'  #set text(dir: rtl)',
             f'  #grid(',
             f'    columns: ({col_widths}),',
             f'    column-gutter: {col_spacing_pt:.1f}pt,',
@@ -295,7 +300,7 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         out += [
             f'  )  // end grid p{pg}',
-            f'  ]  // end align right',
+            f'  // end rtl block',
             f']',
             '#pagebreak()',
             '',
