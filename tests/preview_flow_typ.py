@@ -250,18 +250,23 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         n = len(page.cols)
         col_h = page.block_h_pt
-        col_widths = ', '.join(f'({c.fw_var})' for c in page.cols)
+
+        # OCR 列按 dx 降序排列（右→左）；grid 子项须按 dx 升序（物理左→右）
+        # 配合 #align(right/left) 后，视觉顺序与原版完全一致
+        sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt)  # 升序：左→右
+        col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
 
         # 装订方向决定 grid 对齐方式：
-        #   右→左（奇数页/书口在右）→ grid 靠右，内容从右侧书口开始
-        #   左→右（偶数页/书口在左）→ grid 靠左，内容从左侧书口开始
-        is_rtl = '右→左' in page.binding or '右' in page.binding.split('→')[0]
+        #   右→左（书口在右）→ align(right)，grid 靠右，视觉右起 = dx最大列
+        #   左→右（书口在左）→ align(left)，grid 靠左，视觉左起 = dx最小列
+        is_rtl = '右→左' in page.binding or page.binding.startswith('右')
         grid_align = 'right' if is_rtl else 'left'
         align_comment = '书口在右，内容从右起' if is_rtl else '书口在左，内容从左起'
 
         out += [
             f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列  {align_comment}',
-            f'// 移列提示：剪切 grid 子项；插空列：加 []；换页：移到下页 grid 开头',
+            f'// 子项=物理左→右(dx小→大)，align(right/left)使视觉从书口侧起',
+            f'// 移列：剪切子项到目标位置；插空列：加 []；换页：移到下页grid开头',
             f'#block(width: {page.block_w_pt:.1f}pt, height: {page.block_h_pt:.1f}pt)[',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
             f'  #align({grid_align})[  // ← {align_comment}',
@@ -271,7 +276,7 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
             f'    align: top,',
         ]
 
-        items = [_col_item(c, col_h) for c in page.cols]
+        items = [_col_item(c, col_h) for c in sorted_cols]
         for idx, item in enumerate(items):
             comma = ',' if idx < len(items) - 1 else ''
             item_lines = item.splitlines()
