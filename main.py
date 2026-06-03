@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import pathlib
 import re
 import sys
 from datetime import datetime
@@ -226,7 +227,9 @@ def compile_pdf_from_typ(typ_path: str, output_pdf: str | None = None) -> str:
     返回生成的 PDF 文件路径。
     """
     if output_pdf is None:
-        output_pdf = str(pathlib.Path(typ_path).with_suffix('.pdf'))
+        stem = pathlib.Path(typ_path).stem   # e.g. zywc_out_20260603135931
+        os.makedirs("output", exist_ok=True)
+        output_pdf = os.path.join("output", stem + ".pdf")
 
     log.info(f"编译: {typ_path}  →  {output_pdf}")
     ok = _compile_typ_to_pdf(typ_path, output_pdf)
@@ -394,9 +397,10 @@ if __name__ == "__main__":
     try:
         if args.pdf_from_typ:
             # 模式 A：直接从 .typ 编译 PDF
+            out_pdf = build_output_path(args.pdf_from_typ, args.output_pdf) if args.output_pdf else None
             compile_pdf_from_typ(
                 typ_path=args.pdf_from_typ,
-                output_pdf=args.output_pdf,
+                output_pdf=out_pdf,
             )
         elif args.from_cache and args.typ_only:
             # 模式 B：从 OCR 缓存只生成 typ
