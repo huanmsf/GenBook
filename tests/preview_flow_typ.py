@@ -193,7 +193,7 @@ _FLOW_BANNER = """\
 // ║  · 删除/移动列：直接剪切 grid 子项到目标位置                     ║
 // ║  · 列首字下沉（dy）：修改 pad(top: Xpt) 中的值                  ║
 // ║  · 换页：把 grid 子项剪切到下一页的 grid 开头                    ║
-// ║  · 起始位置：奇数页 align(right) 从右侧书口起；偶数页 align(left) ║
+// ║  · 起始位置：所有页统一 align(right)，内容从右侧书口起排列         ║
 // ╚══════════════════════════════════════════════════════════════════╝
 """
 
@@ -256,20 +256,16 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt)  # 升序：左→右
         col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
 
-        # 装订方向决定 grid 对齐方式：
-        #   右→左（书口在右）→ align(right)，grid 靠右，视觉右起 = dx最大列
-        #   左→右（书口在左）→ align(left)，grid 靠左，视觉左起 = dx最小列
-        is_rtl = '右→左' in page.binding or page.binding.startswith('右')
-        grid_align = 'right' if is_rtl else 'left'
-        align_comment = '书口在右，内容从右起' if is_rtl else '书口在左，内容从左起'
+        # 所有页统一从右起排列，右侧留白固定一致（不区分奇偶页）
+        # 子项按 dx 升序（物理左→右），align(right) 后视觉从右书口向左展开
 
         out += [
-            f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列  {align_comment}',
-            f'// 子项=物理左→右(dx小→大)，align(right/left)使视觉从书口侧起',
+            f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列  右起排列',
+            f'// 子项=物理左→右(dx小→大)；视觉从右起读；右侧留白固定',
             f'// 移列：剪切子项到目标位置；插空列：加 []；换页：移到下页grid开头',
             f'#block(width: {page.block_w_pt:.1f}pt, height: {page.block_h_pt:.1f}pt)[',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
-            f'  #align({grid_align})[  // ← {align_comment}',
+            f'  #align(right)[  // 统一：内容从右侧起排，右边留白一致',
             f'  #grid(',
             f'    columns: ({col_widths}),',
             f'    column-gutter: {col_spacing_pt:.1f}pt,',
@@ -286,7 +282,7 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         out += [
             f'  )  // end grid p{pg}',
-            f'  ]  // end align {grid_align}',
+            f'  ]  // end align right',
             f']',
             '#pagebreak()',
             '',
