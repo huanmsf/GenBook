@@ -93,9 +93,17 @@ def parse_args(argv=None) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "示例:\n"
-            "  python main.py input/古籍.pdf\n"
+            "  # 完整流程：OCR → typ → PDF\n"
             "  python main.py input/古籍.pdf --pages 3-10\n"
-            "  python main.py input/古籍.pdf --output 结果.pdf --pages 1-50\n"
+            "\n"
+            "  # 从 OCR 缓存只生成 typ（不编译 PDF）\n"
+            "  python main.py --from-cache output/xxx.ocr.json --typ-only\n"
+            "\n"
+            "  # 从 typ 文件编译 PDF\n"
+            "  python main.py --pdf-from-typ output/xxx.typ\n"
+            "\n"
+            "  # 从 OCR 缓存重新生成 typ + PDF\n"
+            "  python main.py --from-cache output/xxx.ocr.json --output 结果.pdf\n"
         ),
     )
     parser.add_argument(
@@ -142,6 +150,20 @@ def parse_args(argv=None) -> argparse.Namespace:
         metavar="FILE.ocr.json",
         help="跳过 OCR，直接从缓存文件重新生成 PDF 和 Typst 源文件",
     )
+    parser.add_argument(
+        "--typ-only",
+        dest="typ_only",
+        action="store_true",
+        default=False,
+        help="与 --from-cache 配合：只生成 .typ 源文件，不编译 PDF",
+    )
+    parser.add_argument(
+        "--pdf-from-typ",
+        dest="pdf_from_typ",
+        default=None,
+        metavar="FILE.typ",
+        help="直接从 .typ 文件编译生成 PDF（无需 OCR）",
+    )
     return parser.parse_args(argv)
 
 
@@ -168,23 +190,51 @@ def _compile_typ_to_pdf(typ_path: str, output_pdf: str) -> bool:
         return False
 
 
-def _compile_typ_to_pdf(typ_path: str, output_pdf: str) -> bool:
-    """用 typst Python 包把 .typ 编译为 PDF。
-    返回 True=成功，False=typst 不可用（调用方可降级到 ReportLab）。
+def generate_typ_only(
+    cache_path: str,
+    typ_path: str | None = None,
+    config_path: str = "config/layout_config.yaml",
+) -> str:
+    """从 .ocr.json 缓存只生成 .typ 文件，不编译 PDF。
+    返回生成的 .typ 文件路径。
     """
-    try:
-        import typst as _typst
-        import pathlib as _pl
-        # typst.compile() 返回 bytes
-        pdf_bytes = _typst.compile(typ_path)
-        _pl.Path(output_pdf).write_bytes(pdf_bytes)
-        return True
-    except ImportError:
-        log.warning("typst 包未安装，降级使用 ReportLab 输出 PDF")
-        return False
-    except Exception as e:
-        log.warning(f"typst 编译失败: {e}，降级使用 ReportLab")
-        return False
+    from modules.ocr_cache import load_ocr_cache
+    from modules.pdf_writer import load_config
+    from modules.typst_writer import create_typst, build_typ_output_path
+
+    log.info(f"读取 OCR 缓存: {cache_path}")
+    all_pages = load_ocr_cache(cache_path)
+    log.info(f"共 {len(all_pages)} 页")
+
+    config = load_config(config_path)
+
+    if typ_path is None:
+        # 与缓存文件同名，替换扩展名
+        typ_path = pathlib.Path(cache_path).with_suffix('').with_suffix('.typ').as_posix()
+        # xxx.ocr.json → xxx.typ
+        if typ_path.endswith('.ocr'):
+            typ_path = typ_path[:-4] + '.typ'
+
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
+    return typ_path
+
+
+def compile_pdf_from_typ(typ_path: str, output_pdf: str | None = None) -> str:
+    """从 .typ 文件编译生成 PDF。
+    返回生成的 PDF 文件路径。
+    """
+    if output_pdf is None:
+        output_pdf = str(pathlib.Path(typ_path).with_suffix('.pdf'))
+
+    log.info(f"编译: {typ_path}  →  {output_pdf}")
+    ok = _compile_typ_to_pdf(typ_path, output_pdf)
+    if not ok:
+        log.error("typst 编译失败，且无 ReportLab 降级路径（需要 OCR 数据才能降级）")
+        raise RuntimeError(f"typst 编译失败: {typ_path}")
+    log.info(f"完成！PDF 文件: {os.path.abspath(output_pdf)}")
+    return output_pdf
 
 
 def process(
@@ -342,15 +392,30 @@ if __name__ == "__main__":
     log.info(f"输出路径: {output_pdf}")
 
     try:
-        if args.from_cache:
+        if args.pdf_from_typ:
+            # 模式 A：直接从 .typ 编译 PDF
+            compile_pdf_from_typ(
+                typ_path=args.pdf_from_typ,
+                output_pdf=args.output_pdf,
+            )
+        elif args.from_cache and args.typ_only:
+            # 模式 B：从 OCR 缓存只生成 typ
+            generate_typ_only(
+                cache_path=args.from_cache,
+                typ_path=args.output_pdf,   # 用 --output 指定 typ 路径（可选）
+                config_path=args.config,
+            )
+        elif args.from_cache:
+            # 模式 C：从 OCR 缓存生成 typ + PDF
             process_from_cache(
                 cache_path=args.from_cache,
                 output_pdf=output_pdf,
                 config_path=args.config,
             )
         else:
+            # 模式 D：完整流程 OCR → typ → PDF
             if not args.input_pdf:
-                log.error("请提供源 PDF 路径，或使用 --from-cache 指定缓存文件")
+                log.error("请提供源 PDF 路径，或使用 --from-cache / --pdf-from-typ")
                 sys.exit(1)
             process(
                 input_pdf=args.input_pdf,
