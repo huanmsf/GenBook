@@ -1,46 +1,115 @@
-"""Fix two blank-page causes in typst_writer.py:
-  1. dy clamp: cap dy_pt so box never overflows banxin_h
-  2. 0-col page: use #block instead of #place+#v to avoid stray space
-"""
+"""Patch main.py: replace ReportLab PDF with typst.compile() as primary output."""
 import pathlib
 
-p = pathlib.Path('modules/typst_writer.py')
+p = pathlib.Path('main.py')
 src = p.read_text(encoding='utf-8')
 orig = src
 
-# ── Fix 1: clamp dy so content never overflows banxin ──────────────────────
-old_dy = "        # dy: snap 后的版心顶偏移\n        dy_pt = snapped_dy[ci] if raw_dy else 0.0"
-new_dy = (
-    "        # dy: snap 后的版心顶偏移，clamp 确保 box 不超出版心底部\n"
-    "        dy_pt = snapped_dy[ci] if raw_dy else 0.0\n"
-    "        dy_pt = max(0.0, min(dy_pt, banxin_h - h_pt))"
-)
-src = src.replace(old_dy, new_dy)
+# ── 1. Add _compile_typ_to_pdf() helper before process() ─────────────────────
+old_process_def = 'def process(\n    input_pdf: str,'
+new_helper_and_process = '''\
+def _compile_typ_to_pdf(typ_path: str, output_pdf: str) -> bool:
+    """用 typst Python 包把 .typ 编译为 PDF。
+    返回 True=成功，False=typst 不可用（调用方可降级到 ReportLab）。
+    """
+    try:
+        import typst as _typst
+        import pathlib as _pl
+        # typst.compile() 返回 bytes
+        pdf_bytes = _typst.compile(typ_path)
+        _pl.Path(output_pdf).write_bytes(pdf_bytes)
+        return True
+    except ImportError:
+        log.warning("typst 包未安装，降级使用 ReportLab 输出 PDF")
+        return False
+    except Exception as e:
+        log.warning(f"typst 编译失败: {e}，降级使用 ReportLab")
+        return False
 
-# ── Fix 2: 0-col page use #block so it exactly occupies one page ───────────
-old_empty = (
-    "    # 空白页（无任何列）：用 #v 撑高度 + 页码，避免 #block 导致的双空白页\n"
-    "    if not recs:\n"
-    "        if show_num:\n"
-    "            lns.append(f'#place(bottom + center)[#text(size: pagenum_fw)[{num}]]')\n"
-    "        lns.append(f'#v({banxin_h:.1f}pt)')\n"
-    "        return '\\n'.join(lns)"
-)
-new_empty = (
-    "    # 空白页（无任何列）：用 #block 精确占满一页，#place 放页码\n"
-    "    if not recs:\n"
-    "        lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')\n"
-    "        if show_num:\n"
-    "            lns.append(f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')\n"
-    "        lns.append(']')\n"
-    "        return '\\n'.join(lns)"
-)
-src = src.replace(old_empty, new_empty)
 
+def process(
+    input_pdf: str,'''
+src = src.replace(old_process_def, new_helper_and_process)
+
+# ── 2. In process(): replace create_pdf with typ→compile, keep ReportLab fallback ──
+old_gen_pdf_block = '''\
+    log.info(f"生成 PDF: {output_pdf}")
+    create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
+
+    # 保存 OCR 缓存（.ocr.json），可用 --from-cache 重新生成
+    from modules.ocr_cache import save_ocr_cache, cache_path_for
+    cache_file = cache_path_for(output_pdf)
+    save_ocr_cache(all_pages, cache_file)
+    log.info(f"OCR 缓存已保存: {os.path.abspath(cache_file)}")
+
+    # 同步生成 Typst 源文件（与 PDF 同目录，扩展名 .typ）
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
+    log.info(f"  编译为 PDF: typst compile \\"{os.path.abspath(typ_path)}\\"")'''
+
+new_gen_pdf_block = '''\
+    # 保存 OCR 缓存（.ocr.json），可用 --from-cache 重新生成
+    from modules.ocr_cache import save_ocr_cache, cache_path_for
+    cache_file = cache_path_for(output_pdf)
+    save_ocr_cache(all_pages, cache_file)
+    log.info(f"OCR 缓存已保存: {os.path.abspath(cache_file)}")
+
+    # 生成 Typst 源文件
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
+
+    # 主路：typst.compile() → PDF（与 typ 样式一致）
+    log.info(f"编译 PDF: {output_pdf}")
+    ok = _compile_typ_to_pdf(typ_path, output_pdf)
+    if not ok:
+        # 降级：ReportLab（布局较简陋，仅供应急）
+        log.warning("降级使用 ReportLab 生成 PDF（布局与 Typst 不同）")
+        create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")'''
+
+src = src.replace(old_gen_pdf_block, new_gen_pdf_block)
+
+# ── 3. In process_from_cache(): same replacement ─────────────────────────────
+old_cache_pdf_block = '''\
+    log.info(f"生成 PDF: {output_pdf}")
+    create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
+
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
+    log.info(f"  编译为 PDF: typst compile \\"{os.path.abspath(typ_path)}\\"")'''
+
+new_cache_pdf_block = '''\
+    # 生成 Typst 源文件
+    typ_path = build_typ_output_path(output_pdf)
+    log.info(f"生成 Typst 源文件: {typ_path}")
+    create_typst(all_pages, typ_path, config)
+    log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
+
+    # 主路：typst.compile() → PDF
+    log.info(f"编译 PDF: {output_pdf}")
+    ok = _compile_typ_to_pdf(typ_path, output_pdf)
+    if not ok:
+        log.warning("降级使用 ReportLab 生成 PDF")
+        create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")'''
+
+src = src.replace(old_cache_pdf_block, new_cache_pdf_block)
+
+# ── verify ────────────────────────────────────────────────────────────────────
 checks = [
-    ('dy clamp',           'min(dy_pt, banxin_h - h_pt)' in src),
-    ('0-col uses #block',  "空白页（无任何列）：用 #block 精确占满一页" in src),
-    ('no bare #v',         "#v({banxin_h" not in src),
+    ('_compile_typ_to_pdf defined',   'def _compile_typ_to_pdf(' in src),
+    ('typst.compile() call',          'pdf_bytes = _typst.compile(typ_path)' in src),
+    ('process uses _compile',         '_compile_typ_to_pdf(typ_path, output_pdf)' in src),
+    ('process_from_cache uses _compile', src.count('_compile_typ_to_pdf(typ_path, output_pdf)') == 2),
+    ('ReportLab still as fallback',   "降级使用 ReportLab 生成 PDF" in src),
 ]
 all_ok = True
 for name, ok in checks:
@@ -49,6 +118,6 @@ for name, ok in checks:
 
 if all_ok:
     p.write_text(src, encoding='utf-8', newline='\r\n')
-    print('\nOK: typst_writer.py patched')
+    print('\nOK: main.py patched – typst.compile() is now primary PDF output')
 else:
     print('\nERROR: patch failed – file NOT written')

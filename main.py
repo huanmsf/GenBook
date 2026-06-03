@@ -149,6 +149,44 @@ def parse_args(argv=None) -> argparse.Namespace:
 # 主处理流程
 # ---------------------------------------------------------------------------
 
+def _compile_typ_to_pdf(typ_path: str, output_pdf: str) -> bool:
+    """用 typst Python 包把 .typ 编译为 PDF。
+    返回 True=成功，False=typst 不可用（调用方可降级到 ReportLab）。
+    """
+    try:
+        import typst as _typst
+        import pathlib as _pl
+        # typst.compile() 返回 bytes
+        pdf_bytes = _typst.compile(typ_path)
+        _pl.Path(output_pdf).write_bytes(pdf_bytes)
+        return True
+    except ImportError:
+        log.warning("typst 包未安装，降级使用 ReportLab 输出 PDF")
+        return False
+    except Exception as e:
+        log.warning(f"typst 编译失败: {e}，降级使用 ReportLab")
+        return False
+
+
+def _compile_typ_to_pdf(typ_path: str, output_pdf: str) -> bool:
+    """用 typst Python 包把 .typ 编译为 PDF。
+    返回 True=成功，False=typst 不可用（调用方可降级到 ReportLab）。
+    """
+    try:
+        import typst as _typst
+        import pathlib as _pl
+        # typst.compile() 返回 bytes
+        pdf_bytes = _typst.compile(typ_path)
+        _pl.Path(output_pdf).write_bytes(pdf_bytes)
+        return True
+    except ImportError:
+        log.warning("typst 包未安装，降级使用 ReportLab 输出 PDF")
+        return False
+    except Exception as e:
+        log.warning(f"typst 编译失败: {e}，降级使用 ReportLab")
+        return False
+
+
 def process(
     input_pdf: str,
     output_pdf: str,
@@ -227,22 +265,26 @@ def process(
             image_regions=cropped_images,
         ))
 
-    log.info(f"生成 PDF: {output_pdf}")
-    create_pdf(all_pages, output_pdf, config)
-    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
-
     # 保存 OCR 缓存（.ocr.json），可用 --from-cache 重新生成
     from modules.ocr_cache import save_ocr_cache, cache_path_for
     cache_file = cache_path_for(output_pdf)
     save_ocr_cache(all_pages, cache_file)
     log.info(f"OCR 缓存已保存: {os.path.abspath(cache_file)}")
 
-    # 同步生成 Typst 源文件（与 PDF 同目录，扩展名 .typ）
+    # 生成 Typst 源文件
     typ_path = build_typ_output_path(output_pdf)
     log.info(f"生成 Typst 源文件: {typ_path}")
     create_typst(all_pages, typ_path, config)
-    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
-    log.info(f"  编译为 PDF: typst compile \"{os.path.abspath(typ_path)}\"")
+    log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
+
+    # 主路：typst.compile() → PDF（与 typ 样式一致）
+    log.info(f"编译 PDF: {output_pdf}")
+    ok = _compile_typ_to_pdf(typ_path, output_pdf)
+    if not ok:
+        # 降级：ReportLab（布局较简陋，仅供应急）
+        log.warning("降级使用 ReportLab 生成 PDF（布局与 Typst 不同）")
+        create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
 
 
 # ---------------------------------------------------------------------------
@@ -265,15 +307,19 @@ def process_from_cache(
 
     config = load_config(config_path)
 
-    log.info(f"生成 PDF: {output_pdf}")
-    create_pdf(all_pages, output_pdf, config)
-    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
-
+    # 生成 Typst 源文件
     typ_path = build_typ_output_path(output_pdf)
     log.info(f"生成 Typst 源文件: {typ_path}")
     create_typst(all_pages, typ_path, config)
-    log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
-    log.info(f"  编译为 PDF: typst compile \"{os.path.abspath(typ_path)}\"")
+    log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
+
+    # 主路：typst.compile() → PDF
+    log.info(f"编译 PDF: {output_pdf}")
+    ok = _compile_typ_to_pdf(typ_path, output_pdf)
+    if not ok:
+        log.warning("降级使用 ReportLab 生成 PDF")
+        create_pdf(all_pages, output_pdf, config)
+    log.info(f"完成！输出文件: {os.path.abspath(output_pdf)}")
 
 
 # ---------------------------------------------------------------------------
