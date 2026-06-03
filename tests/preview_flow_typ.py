@@ -250,20 +250,33 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         n = len(page.cols)
         col_h = page.block_h_pt
+        bw = page.block_w_pt
 
         # OCR 列按 dx 降序排列（右→左）；grid 子项须按 dx 升序（物理左→右）
-        # 配合 #align(right/left) 后，视觉顺序与原版完全一致
+        # 配合 #align(right) 后，视觉顺序与原版完全一致
         sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt)  # 升序：左→右
         col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
 
-        # 所有页统一从右起排列，右侧留白固定一致（不区分奇偶页）
-        # 子项按 dx 升序（物理左→右），align(right) 后视觉从右书口向左展开
+        # 计算版心最多能放几列（用 cw 估算，fw 不同列取均值）
+        avg_fw = sum(14.0 if c.fw_var == 'cw' else
+                     21.0 if 'heading' in c.fw_var else
+                     18.2 if 'title' in c.fw_var else
+                     11.2 if 'note' not in c.fw_var else 7.56
+                     for c in page.cols) / n if n else 14.0
+        max_cols = int(bw / (avg_fw + col_spacing_pt))
+        overflow = max(0, n - max_cols)
+        cap_note = (f'容量{max_cols}列/当前{n}列  '
+                    + (f'⚠ 溢出{overflow}列→右边可见' if overflow else '✓ 未溢出'))
+
+        # 所有页统一从右起排列，右侧留白固定一致
+        # #block 只限高度不限宽度（clip:false 默认），溢出列在 Tinymist 可见
 
         out += [
-            f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列  右起排列',
-            f'// 子项=物理左→右(dx小→大)；视觉从右起读；右侧留白固定',
-            f'// 移列：剪切子项到目标位置；插空列：加 []；换页：移到下页grid开头',
-            f'#block(width: {page.block_w_pt:.1f}pt, height: {page.block_h_pt:.1f}pt)[',
+            f'// 版心 {bw:.1f}×{col_h:.1f}pt  {cap_note}',
+            f'// ★ 插列：在任意位置加子项，左侧列自动左移；溢出时列跑到右边距外',
+            f'// ★ 删列：删子项，右侧列自动右移（向书口侧靠拢）',
+            f'// ★ 空列：插入 []  移列：剪切子项到目标位置',
+            f'#block(height: {col_h:.1f}pt)[  // 仅限高度；宽度自由，溢出列可见',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
             f'  #align(right)[  // 统一：内容从右侧起排，右边留白一致',
             f'  #grid(',
