@@ -193,6 +193,7 @@ _FLOW_BANNER = """\
 // ║  · 删除/移动列：直接剪切 grid 子项到目标位置                     ║
 // ║  · 列首字下沉（dy）：修改 pad(top: Xpt) 中的值                  ║
 // ║  · 换页：把 grid 子项剪切到下一页的 grid 开头                    ║
+// ║  · 起始位置：奇数页 align(right) 从右侧书口起；偶数页 align(left) ║
 // ╚══════════════════════════════════════════════════════════════════╝
 """
 
@@ -251,11 +252,19 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         col_h = page.block_h_pt
         col_widths = ', '.join(f'({c.fw_var})' for c in page.cols)
 
+        # 装订方向决定 grid 对齐方式：
+        #   右→左（奇数页/书口在右）→ grid 靠右，内容从右侧书口开始
+        #   左→右（偶数页/书口在左）→ grid 靠左，内容从左侧书口开始
+        is_rtl = '右→左' in page.binding or '右' in page.binding.split('→')[0]
+        grid_align = 'right' if is_rtl else 'left'
+        align_comment = '书口在右，内容从右起' if is_rtl else '书口在左，内容从左起'
+
         out += [
-            f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列',
-            f'// ↑ 第1子项=最右列；要左移最后N列：把最后N项剪切到下一页grid开头',
+            f'// 版心 {page.block_w_pt:.1f}×{page.block_h_pt:.1f}pt  共 {n} 列  {align_comment}',
+            f'// 移列提示：剪切 grid 子项；插空列：加 []；换页：移到下页 grid 开头',
             f'#block(width: {page.block_w_pt:.1f}pt, height: {page.block_h_pt:.1f}pt)[',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
+            f'  #align({grid_align})[  // ← {align_comment}',
             f'  #grid(',
             f'    columns: ({col_widths}),',
             f'    column-gutter: {col_spacing_pt:.1f}pt,',
@@ -272,6 +281,7 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         out += [
             f'  )  // end grid p{pg}',
+            f'  ]  // end align {grid_align}',
             f']',
             '#pagebreak()',
             '',
