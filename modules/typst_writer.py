@@ -239,6 +239,10 @@ def _build_page_block(page: PageData, assets_dir: str,
     tmpl = g.get('template', 'blank')
     show_num  = bool(g.get('show_page_num', True))
     num_style = g.get('page_num_style', 'chinese')
+    _raw_offset  = int(g.get('page_num_offset', 1))
+    page_offset  = max(1, _raw_offset)
+    _raw_offset  = int(g.get('page_num_offset', 1))
+    page_offset  = max(1, _raw_offset)
     htitle    = g.get('header_title', '')
     hvol      = g.get('header_volume', '')
     dpi       = page.dpi
@@ -307,11 +311,13 @@ def _build_page_block(page: PageData, assets_dir: str,
         lns.append(f'#align(center)[{_escape_typst((htitle + " " + hvol).strip())}]')
         lns.append('')
 
-    num = _to_chinese_numeral(page.page_num) if num_style == 'chinese' else str(page.page_num)
+    display_num   = page.page_num - (page_offset - 1)
+    show_num_here = show_num and display_num > 0
+    num = _to_chinese_numeral(display_num) if num_style == 'chinese' else str(display_num)
     # 空白页（无任何列）：用 #block 精确占满一页，#place 放页码
     if not recs:
         lns.append(f'#block(width: {banxin_w:.1f}pt, height: {banxin_h:.1f}pt)[')
-        if show_num:
+        if show_num_here:
             lns.append(f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
         lns.append(']')
         return '\n'.join(lns)

@@ -262,6 +262,9 @@ def _build_flow_page(page: PageData, assets_dir: str, page_index: int,
     tmpl         = g.get('template', 'blank')
     show_num     = bool(g.get('show_page_num', True))
     num_style    = g.get('page_num_style', 'chinese')
+    # page_num_offset: 正文第1页对应的物理页号（0/1=从第1页编码）
+    _raw_offset  = int(g.get('page_num_offset', 1))
+    page_offset  = max(1, _raw_offset)  # 0 视为 1
     htitle       = g.get('header_title', '')
     hvol         = g.get('header_volume', '')
     dpi          = page.dpi
@@ -298,8 +301,11 @@ def _build_flow_page(page: PageData, assets_dir: str, page_index: int,
             f'#align(center)[{_esc((htitle + " " + hvol).strip())}]')
         lns.append('')
 
-    num = (_to_chinese_numeral(page.page_num)
-           if num_style == 'chinese' else str(page.page_num))
+    # 显示页码 = 物理页号 - (page_offset-1)；≤0 则本页不显示页码
+    display_num   = page.page_num - (page_offset - 1)
+    show_num_here = show_num and display_num > 0
+    num = (_to_chinese_numeral(display_num)
+           if num_style == 'chinese' else str(display_num))
 
     # ── 空白页 ────────────────────────────────────────────────────────
     if not recs:
@@ -307,7 +313,7 @@ def _build_flow_page(page: PageData, assets_dir: str, page_index: int,
             f'// （空页）',
             f'#block(width: {bw:.1f}pt, height: {bh:.1f}pt)[',
         ]
-        if show_num:
+        if show_num_here:
             lns.append(
                 f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
         lns.append(']')
@@ -339,7 +345,7 @@ def _build_flow_page(page: PageData, assets_dir: str, page_index: int,
         f'// ★ 空列：插入 []  移列：剪切子项到目标位置',
         f'#block(width: {bw:.1f}pt, height: {bh:.1f}pt)[  // 版心宽高',
     ]
-    if show_num:
+    if show_num_here:
         lns.append(
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{num}]]')
     lns += [
