@@ -315,19 +315,25 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description='将绝对坐标 .typ 转换为流式 grid 竖排 .typ（预览用）',
+        description='将绝对坐标 .typ 或 .ocr.json 转换为流式 grid 竖排 .typ',
         epilog="""
 示例:
+  # 直接从 OCR 缓存生成（推荐）
+  python tests/preview_flow_typ.py output/book.ocr.json
+  python tests/preview_flow_typ.py output/book.ocr.json --compile
+
+  # 从已有绝对坐标 .typ 生成
   python tests/preview_flow_typ.py output/book.typ
   python tests/preview_flow_typ.py output/book.typ --out output/book_flow.typ
-  python tests/preview_flow_typ.py output/book.typ --compile
         """,
     )
-    parser.add_argument('src', help='源 .typ 文件路径（绝对坐标版）')
+    parser.add_argument('src', help='源文件路径：.ocr.json 或绝对坐标版 .typ')
     parser.add_argument('--out', default=None,
                         help='输出路径（默认：源文件名加 _flow.typ）')
     parser.add_argument('--col-spacing', type=float, default=5.0,
                         help='列间距 pt（默认 5.0）')
+    parser.add_argument('--config', default='config/layout_config.yaml',
+                        help='排版配置文件（仅 .ocr.json 输入时使用，默认 config/layout_config.yaml）')
     parser.add_argument('--compile', action='store_true',
                         help='生成后用 typst 包编译为 PDF（需 pip install typst）')
     args = parser.parse_args(argv)
@@ -336,6 +342,22 @@ def main(argv: list[str] | None = None) -> None:
     if not src_path.exists():
         print(f'ERROR: 文件不存在: {src_path}', file=sys.stderr)
         sys.exit(1)
+
+    # 支持直接传入 .ocr.json：先生成绝对坐标 .typ，再转流式
+    if src_path.suffix == '.json' and '.ocr' in src_path.name:
+        print(f'检测到 OCR 缓存文件，先生成绝对坐标 .typ ...')
+        import sys as _sys
+        _sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+        from modules.ocr_cache import load_ocr_cache
+        from modules.pdf_writer import load_config
+        from modules.typst_writer import create_typst
+        all_pages = load_ocr_cache(str(src_path))
+        config = load_config(args.config)
+        # 输出绝对坐标 .typ 到同目录
+        abs_typ = src_path.with_name(src_path.name.replace('.ocr.json', '.typ'))
+        create_typst(all_pages, str(abs_typ), config)
+        print(f'  绝对坐标 .typ: {abs_typ}')
+        src_path = abs_typ
 
     out_path = (pathlib.Path(args.out) if args.out
                 else src_path.with_stem(src_path.stem + '_flow'))
