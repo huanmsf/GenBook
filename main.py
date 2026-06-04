@@ -93,18 +93,28 @@ def parse_args(argv=None) -> argparse.Namespace:
         description="GenBook: 将图片版 PDF 古籍转换为可编辑竖排 PDF",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
+            "排版模式:\n"
+            "  --flow      (默认) 流式 grid 竖排：列顺序即显示顺序，插删列只需增删 grid 子项\n"
+            "  --no-flow   绝对坐标竖排：每列用 #place(dx,dy) 精确定位，移列须逐一改坐标\n"
+            "\n"
             "示例:\n"
-            "  # 完整流程：OCR → typ → PDF\n"
+            "  # 完整流程：OCR → 流式 typ → PDF（默认流式模式）\n"
             "  python main.py input/古籍.pdf --pages 3-10\n"
             "\n"
-            "  # 从 OCR 缓存只生成 typ（不编译 PDF）\n"
+            "  # 完整流程：使用绝对坐标模式\n"
+            "  python main.py input/古籍.pdf --pages 3-10 --no-flow\n"
+            "\n"
+            "  # 从 OCR 缓存只生成流式 typ（不编译 PDF）\n"
             "  python main.py --from-cache output/xxx.ocr.json --typ-only\n"
+            "\n"
+            "  # 从 OCR 缓存只生成绝对坐标 typ\n"
+            "  python main.py --from-cache output/xxx.ocr.json --typ-only --no-flow\n"
+            "\n"
+            "  # 从 OCR 缓存重新生成流式 typ + PDF\n"
+            "  python main.py --from-cache output/xxx.ocr.json --output 结果.pdf\n"
             "\n"
             "  # 从 typ 文件编译 PDF\n"
             "  python main.py --pdf-from-typ output/xxx.typ\n"
-            "\n"
-            "  # 从 OCR 缓存重新生成 typ + PDF\n"
-            "  python main.py --from-cache output/xxx.ocr.json --output 结果.pdf\n"
         ),
     )
     parser.add_argument(
@@ -165,6 +175,19 @@ def parse_args(argv=None) -> argparse.Namespace:
         metavar="FILE.typ",
         help="直接从 .typ 文件编译生成 PDF（无需 OCR）",
     )
+    parser.add_argument(
+        "--flow",
+        dest="flow",
+        action="store_true",
+        default=True,
+        help="使用流式 grid 竖排模式生成 .typ（默认开启）",
+    )
+    parser.add_argument(
+        "--no-flow",
+        dest="flow",
+        action="store_false",
+        help="使用绝对坐标竖排模式生成 .typ（回退到 typst_writer）",
+    )
     return parser.parse_args(argv)
 
 
@@ -195,13 +218,16 @@ def generate_typ_only(
     cache_path: str,
     typ_path: str | None = None,
     config_path: str = "config/layout_config.yaml",
+    flow: bool = True,
 ) -> str:
     """从 .ocr.json 缓存只生成 .typ 文件，不编译 PDF。
     返回生成的 .typ 文件路径。
+    flow=True（默认）流式 grid 竖排；flow=False 绝对坐标竖排。
     """
     from modules.ocr_cache import load_ocr_cache
     from modules.pdf_writer import load_config
-    from modules.typst_writer import create_typst, build_typ_output_path
+    from modules.typst_flow_writer import create_typst
+    from modules.typst_writer import build_typ_output_path
 
     log.info(f"读取 OCR 缓存: {cache_path}")
     all_pages = load_ocr_cache(cache_path)
@@ -216,8 +242,9 @@ def generate_typ_only(
         if typ_path.endswith('.ocr'):
             typ_path = typ_path[:-4] + '.typ'
 
-    log.info(f"生成 Typst 源文件: {typ_path}")
-    create_typst(all_pages, typ_path, config)
+    mode = "流式grid" if flow else "绝对坐标"
+    log.info(f"生成 Typst 源文件（{mode}模式）: {typ_path}")
+    create_typst(all_pages, typ_path, config, flow=flow)
     log.info(f"完成！Typst 文件: {os.path.abspath(typ_path)}")
     return typ_path
 
@@ -248,15 +275,20 @@ def process(
     confidence_threshold: float = 0.7,
     page_start: int | None = None,
     page_end: int | None = None,
+    flow: bool = True,
 ) -> None:
-    """主处理流程：读取 PDF → 版面分析 → OCR → 重构 PDF。"""
+    """主处理流程：读取 PDF → 版面分析 → OCR → 重构 PDF。
+    flow=True（默认）流式 grid 竖排；flow=False 绝对坐标竖排。
+    """
     from modules.pdf_reader import pdf_to_images
     from modules.layout_analyzer import analyze_layout, Region
     from modules.ocr_engine import recognize_region, sort_vertical_chars
     from modules.image_cropper import crop_image_region
     from modules.page_model import PageData, TextColumn, CharData, ImageRegion
     from modules.pdf_writer import load_config, create_pdf
-    from modules.typst_writer import create_typst, build_typ_output_path
+    from modules.typst_flow_writer import create_typst as _flow_create
+    from modules.typst_writer import create_typst as _abs_create, build_typ_output_path
+    _create_typst = _flow_create if flow else _abs_create
 
     config = load_config(config_path)
 
@@ -326,8 +358,9 @@ def process(
 
     # 生成 Typst 源文件
     typ_path = build_typ_output_path(output_pdf)
-    log.info(f"生成 Typst 源文件: {typ_path}")
-    create_typst(all_pages, typ_path, config)
+    mode = "流式grid" if flow else "绝对坐标"
+    log.info(f"生成 Typst 源文件（{mode}模式）: {typ_path}")
+    _create_typst(all_pages, typ_path, config, flow=flow)
     log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
 
     # 主路：typst.compile() → PDF（与 typ 样式一致）
@@ -348,11 +381,16 @@ def process_from_cache(
     cache_path: str,
     output_pdf: str,
     config_path: str = "config/layout_config.yaml",
+    flow: bool = True,
 ) -> None:
-    """从 .ocr.json 缓存直接生成 PDF 和 Typst 文件，无需重跑 OCR。"""
+    """从 .ocr.json 缓存直接生成 PDF 和 Typst 文件，无需重跑 OCR。
+    flow=True（默认）流式 grid 竖排；flow=False 绝对坐标竖排。
+    """
     from modules.ocr_cache import load_ocr_cache
     from modules.pdf_writer import load_config, create_pdf
-    from modules.typst_writer import create_typst, build_typ_output_path
+    from modules.typst_flow_writer import create_typst as _flow_create
+    from modules.typst_writer import create_typst as _abs_create, build_typ_output_path
+    _create_typst = _flow_create if flow else _abs_create
 
     log.info(f"读取 OCR 缓存: {cache_path}")
     all_pages = load_ocr_cache(cache_path)
@@ -362,8 +400,9 @@ def process_from_cache(
 
     # 生成 Typst 源文件
     typ_path = build_typ_output_path(output_pdf)
-    log.info(f"生成 Typst 源文件: {typ_path}")
-    create_typst(all_pages, typ_path, config)
+    mode = "流式grid" if flow else "绝对坐标"
+    log.info(f"生成 Typst 源文件（{mode}模式）: {typ_path}")
+    _create_typst(all_pages, typ_path, config, flow=flow)
     log.info(f"Typst 源文件: {os.path.abspath(typ_path)}")
 
     # 主路：typst.compile() → PDF
@@ -408,6 +447,7 @@ if __name__ == "__main__":
                 cache_path=args.from_cache,
                 typ_path=args.output_pdf,   # 用 --output 指定 typ 路径（可选）
                 config_path=args.config,
+                flow=args.flow,
             )
         elif args.from_cache:
             # 模式 C：从 OCR 缓存生成 typ + PDF
@@ -415,6 +455,7 @@ if __name__ == "__main__":
                 cache_path=args.from_cache,
                 output_pdf=output_pdf,
                 config_path=args.config,
+                flow=args.flow,
             )
         else:
             # 模式 D：完整流程 OCR → typ → PDF
@@ -429,6 +470,7 @@ if __name__ == "__main__":
                 confidence_threshold=args.confidence,
                 page_start=page_start,
                 page_end=page_end,
+                flow=args.flow,
             )
     except Exception as e:
         log.error(f"处理失败: {e}")
