@@ -257,7 +257,6 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         #   插入位置K的子项 → K左侧（远书口）的列自动左移，K右侧不动 ✓
         #   溢出列出现在左侧（版心外），Tinymist 可见 ✓
         sorted_cols = sorted(page.cols, key=lambda c: c.dx_pt, reverse=True)  # 降序：右→左
-        col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
 
         # 计算版心最多能放几列（用平均 fw 估算）
         avg_fw = sum(14.0 if c.fw_var == 'cw' else
@@ -267,8 +266,15 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
                      for c in page.cols) / n if n else 14.0
         max_cols = int(bw / (avg_fw + col_spacing_pt))
         overflow = max(0, n - max_cols)
+        pad_cols = max(0, max_cols - n)   # 左侧需补的空列数，使内容列贴右
         cap_note = (f'容量{max_cols}列/当前{n}列  '
-                    + (f'⚠ 溢出{overflow}列→左边可见' if overflow else '✓ 未溢出'))
+                    + (f'⚠ 溢出{overflow}列→左边可见' if overflow else f'✓ 未溢出 补{pad_cols}空列'))
+
+        # columns：内容列宽 + 末尾补列（dir:rtl 下末尾=视觉最左）
+        content_col_widths = ', '.join(f'({c.fw_var})' for c in sorted_cols)
+        pad_col_widths = ', '.join(['(cw)'] * pad_cols) if pad_cols else ''
+        col_widths = (content_col_widths + ', ' + pad_col_widths
+                      if pad_cols else content_col_widths)
 
         # #block 只限高度不限宽度，溢出列在 Tinymist 左边可见
         # text(dir:rtl) 让 grid 从右向左展开，第1子项=最右列
@@ -279,10 +285,9 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
             f'// ★ 插列：在位置K前加子项 → K及其左侧自动左移，右侧不动',
             f'// ★ 删列：删子项 → 右侧列自动右移（向书口靠拢）',
             f'// ★ 空列：插入 []  移列：剪切子项到目标位置',
-            f'#block(height: {col_h:.1f}pt)[  // 仅限高度；宽度自由，溢出列左边可见',
+            f'#block(width: {bw:.1f}pt, height: {col_h:.1f}pt)[  // 版心宽高',
             f'  #place(bottom + center)[#text(size: pagenum_fw)[{pg}]]',
-            f'  // 第1子项=最右列（书口侧），子项顺序=视觉右→左',
-            f'  // dir:rtl 让 grid 从右向左铺列；插入新列时右侧不动，左侧左移',
+            f'  // dir:rtl：grid 从右向左展开；末尾补{{pad_cols}}个空列使内容列贴右',
             f'  #set text(dir: rtl)',
             f'  #grid(',
             f'    columns: ({col_widths}),',
@@ -291,8 +296,10 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
         ]
 
         items = [_col_item(c, col_h) for c in sorted_cols]
-        for idx, item in enumerate(items):
-            comma = ',' if idx < len(items) - 1 else ''
+        # 末尾追加空列（视觉最左侧，dir:rtl 下排在内容左边），使内容列贴右
+        all_items = items + ['[]'] * pad_cols
+        for idx, item in enumerate(all_items):
+            comma = ',' if idx < len(all_items) - 1 else ''
             item_lines = item.splitlines()
             for li, il in enumerate(item_lines):
                 out.append(f'    {il}')
@@ -300,7 +307,6 @@ def _generate_flow_typ(header: str, pages: list[PageEntry],
 
         out += [
             f'  )  // end grid p{pg}',
-            f'  // end rtl block',
             f']',
             '#pagebreak()',
             '',
