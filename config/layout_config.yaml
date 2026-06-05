@@ -66,10 +66,10 @@ guji_layout:
   title_max_chars: 12
 
   # -- 页码 -------------------------------------------------------
-  show_page_num: true
+  show_page_num: false
   # page_num_offset: 正文起始页的物理页号
   #   例如 5 表示第5页显示页码1，前4页无页码；0或1表示从第1页开始编页码
-  page_num_offset: 1
+  page_num_offset: 3
   page_num_style: "arabic"
 
   # -- 天头书名/卷次（留空则不显示）-------------------------------
