@@ -35,8 +35,8 @@ font_path:   "fonts/STKAITI.TTF"
 #   16 pt ≈ 5.64 mm — 一般大字本
 #   20 pt ≈ 7.06 mm — 中字大字本
 #   23 pt ≈ 8.11 mm — 本檔預設（《周易参同契》實測）
-font_size:      23      # pt  「常規版: 12」
-note_font_size: 11.5    # pt，夾注小字（font_size × 0.50）  「常規版: 6.0」
+font_size:      20      # pt  「常規版: 12」
+note_font_size: 11    # pt，夾注小字（font_size × 0.50）  「常規版: 6.0」
 
 # line_spacing: 0 = 自動取 font_size × 20％
 #   大字版 23pt → 4.6 pt   「常規版 12pt → 2.4 pt」
@@ -44,7 +44,7 @@ line_spacing: 0
 
 # -- 列間距 --------------------------------------------------------
 # 大字版/常規版同用 4 pt
-column_spacing: 4       # pt  「常規版同」
+column_spacing: 6       # pt  「常規版同」
 
 # -- 旧版 PDF writer 頁邊距（單位 pt）-------------------
 # 大字版：                   常規版：
@@ -68,7 +68,7 @@ guji_layout:
   #              = 403 pt              ×  470 pt
   # 常規版：版心 = 182-18-13=151 mm  ×  257-20-20=217 mm
   tian_tou_mm:    54    # 天頭（大天頭古籍風）  「常規版: 20」
-  di_jiao_mm:     37    # 地脚               「常規版: 20」
+  di_jiao_mm:     20    # 地脚               「常規版: 20」
   zhuang_ding_mm: 30    # 裝訂邂（內側）       「常規版: 18」
   shu_kou_mm:     10    # 書口邂（外側）       「常規版: 13」
 
@@ -88,7 +88,7 @@ guji_layout:
 
   # -- 頁碼 ---------------------------------------------------------
   show_page_num:   true
-  page_num_offset: 5    # 封面/目次展頁通常前 4~6 頁
+  page_num_offset: 3    # 封面/目次展頁通常前 4~6 頁
   page_num_style:  "arabic"   # arabic=阿拉伯數字 | chinese=漢字
 
   # -- 天頭書名／卷次（留空則不顯示）-------------------------------
