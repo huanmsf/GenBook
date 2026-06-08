@@ -22,6 +22,13 @@ import re
 import sys
 from datetime import datetime
 
+# 加载 .env（如已安装 python-dotenv；未安装则静默跳过）
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(override=False)  # 不覆盖已存在的环境变量
+except ImportError:
+    pass
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
@@ -138,9 +145,12 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--config",
-        default="config/layout_config.yaml",
+        default=os.environ.get("LAYOUT_CONFIG", "config/layout_config.yaml"),
         metavar="CONFIG",
-        help="排版配置文件路径（默认: config/layout_config.yaml）",
+        help=(
+            "排版配置文件路径"
+            "（默认: 读取 .env 中 LAYOUT_CONFIG，或 config/layout_config.yaml）"
+        ),
     )
     parser.add_argument(
         "--dpi",
