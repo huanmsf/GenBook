@@ -1,72 +1,90 @@
 # GenBook 排版配置 — 港台现代竖版书籍（联经／三民／九歌出版社规范）
 #
-# 規格依據：
-#   聯經出版（台北）、三民書局、九歌文庫 — B5 菊版（182×257 mm）
-#   正文字號：11pt（≈ 22~23 字/列），列間距 4pt
-#   天頭 15mm（現代書，古籍才用 25mm+）
-#   地腳 18mm、裝訂邊 18mm、書口邊 13mm
+# ══════════════════════════════════════════════════════════════
+#  規格依據（實測値）
+#  ────────────────────────────────────────────────────────────
+#  紙張：JIS-B5 菊版  182 × 257 mm
 #
-# 與 layout_config.yaml（掃描稿模式）差異：
-#   本檔針對「出版輸出」嚴格對齊業界留白標準；
-#   字號取 11pt（正式出版慣例），非掃描稿的放大值。
+#  ● 联经出版（台北）文學類：
+#      正文字號  13pt（≈4.59mm）
+#      天頭      22mm（含書眉）
+#      地脚      22mm（含頁碼）
+#      裝訂邂    20mm  書口邂  15mm
+#      列間距    5pt
+#      → 版心  182-20-15=147mm × 257-22-22=213mm
+#      → 容列  147/(4.59+1.76)≈23列  每列≈38字
+#
+#  ● 三民書局 / 九歌文庫（較密排）：
+#      正文字號  12pt（≈4.23mm）
+#      天頭/地脚  18/20mm  裝訂/書口  18/13mm
+#      → 版心 151mm × 219mm  容列≈25列  每列≈46字
+#
+#  本檔取「联经」規格為基準
+# ══════════════════════════════════════════════════════════════
 
 # -- 字體 ----------------------------------------------------------
-# 使用思源宋體（繁體）；若未安裝可換 STSong / 明朝體 等
-# 下載：https://github.com/adobe-fonts/source-han-serif/releases
-font_family: "SourceHanSerifTC"
-font_path:   "fonts/SourceHanSerifTC-Regular.otf"
-# 備用：楷書（掃描稿還原感更強）
-# font_family: "STKaiTi"
-# font_path:   "fonts/STKAITI.TTF"
+# 建議：思源宋體繁體（SourceHanSerifTC）
+# 備用（若未安裝思源）：
+#   楷書  STKaiTi / STKAITI.TTF
+#   明朝  SimSun  / simsun.ttc
+font_family: "STKaiTi"
+font_path:   "fonts/STKAITI.TTF"
+# font_family: "SourceHanSerifTC"
+# font_path:   "fonts/SourceHanSerifTC-Regular.otf"
 
 # -- 字號 ----------------------------------------------------------
-# 港台出版正文常用 10~11pt；此處取 11pt（換算 ≈ 3.88mm/字格）
-font_size:      11      # pt，正文字號
-note_font_size: 5.5     # pt，夾注雙行小字（≈ font_size × 0.50）
+# 联经文學書實測正文字號：13pt（≈4.59mm）
+# 對比：
+#   11pt ≈ 3.88mm — 偏小（轭典/注釋用）
+#   12pt ≈ 4.23mm — 三民/九歌標準
+#   13pt ≈ 4.59mm — 联经文學類（推薦）
+#   14pt ≈ 4.94mm — 大字版 / 老年讀者
+font_size:      13      # pt，正文字號
+note_font_size: 6.5     # pt，夾注雙行小字（≈ font_size × 0.50）
 
 # line_spacing: 額外字間距(pt)
-#   0  = 自動，取 font_size × 20%（≈ 2.2pt），符合業界標準行距
+#   0  = 自動，取 font_size × 20％（= 2.6pt ≈ 0.92mm），符合業界行距
 line_spacing: 0
 
 # -- 列間距 --------------------------------------------------------
-# 業界標準：4pt（≈ 1.4mm）
-column_spacing: 4
+# 联经常用 5pt（≈1.76mm）；三民用 4pt
+column_spacing: 5
 
-# -- 旧版 PDF writer 页边距（兼容保留，单位 pt）-------------------
+# -- 旧版 PDF writer 頁邊距（兼容保留，單位 pt）-------------------
 page_margin:
-  top:    43   # ≈ 15mm
-  bottom: 51   # ≈ 18mm
-  left:   51   # ≈ 18mm（裝訂邊）
-  right:  37   # ≈ 13mm（書口邊）
+  top:    62   # ≈ 22mm（天頭，含書煩位置）
+  bottom: 62   # ≈ 22mm（地脚，含頁碼位置）
+  left:   57   # ≈ 20mm（裝訂邂）
+  right:  43   # ≈ 15mm（書口邂）
 
 # -- 古籍/竖版排版核心配置 -----------------------------------------
 guji_layout:
   enabled: true
-  # template: blank=現代竖版 | classic=經典古籍（後期）
-  template: "blank"
+  template: "blank"   # blank=現代竖版 | classic=古籍
 
-  # 紙張：JIS-B5（港台菊版標準）182×257 mm
+  # 紙張：JIS-B5（港台菊版標準） 182×257 mm
   paper:          "jis-b5"
   page_width_mm:  182
   page_height_mm: 257
 
   # -- 版面留白（單位 mm）------------------------------------------
-  # 版心寬 = 182 - 18 - 13 = 151 mm  ≈ 428 pt
-  # 版心高 = 257 - 15 - 18 = 224 mm  ≈ 635 pt
-  tian_tou_mm:    15    # 天頭（現代書標準，古籍用 25+）
-  di_jiao_mm:     18    # 地腳
-  zhuang_ding_mm: 18    # 裝訂邊（內側，右翻書為右）
-  shu_kou_mm:     13    # 書口邊（外側）
+  # 联经文學類實測：
+  #   版心寬 = 182 - 20 - 15 = 147 mm  ≈ 417 pt
+  #   版心高 = 257 - 22 - 22 = 213 mm  ≈ 604 pt
+  tian_tou_mm:    22    # 天頭（含書煩，現代書標準）
+  di_jiao_mm:     22    # 地脚（含頁碼，給頁碼留足空間）
+  zhuang_ding_mm: 20    # 裝訂邂（內側，右翳書）
+  shu_kou_mm:     15    # 書口邂（外側）
 
   # -- 列參數 -------------------------------------------------------
-  # 版心寬 151mm，字格 11pt≈3.88mm，間距 4pt≈1.41mm
-  # 可容列數 = 151 / (3.88 + 1.41) ≈ 28.5 → 取 28 列
-  # 每列字數 = 版心高 224mm / 3.88mm ≈ 57 字 → 取 22（與掃描稿兼容）
-  char_per_col:       22
+  # 版心寬 147mm，字格 13pt≈4.59mm，間距 5pt≈1.76mm
+  # 容列數 = 417/(13+5) = 23.2 → 取 23 列
+  # 每列字數 = 版心高 213mm / (4.59+0.92)mm ≈ 38字 → 設 38
+  char_per_col:       38    # 每列最多字數（版心高/字格高）
   reserve_empty_cols: 0
-  note_col_ratio:     0.60   # 夾注列寬 = 正文列 × 0.60（雙行小字）
+  note_col_ratio:     0.60  # 夾注列寬 = 正文列 × 0.60（雙行小字）
 
-  # -- 列類型判斷閾值 -----------------------------------------------
+  # -- 列類型判斷閾値 -----------------------------------------------
   note_gap_ratio:  0.55
   note_max_chars:  6
   note_cx_ratio:   0.85
@@ -74,7 +92,7 @@ guji_layout:
 
   # -- 頁碼 ---------------------------------------------------------
   show_page_num:   true
-  # page_num_offset: 封面/版權頁通常佔 4~6 頁，正文從第 5 頁算起
+  # 封面/目次/序通常佔前 4~6 頁，正文從第 5 頁算起
   page_num_offset: 5
   page_num_style:  "arabic"   # arabic=阿拉伯數字 | chinese=漢字
 
@@ -83,22 +101,29 @@ guji_layout:
   header_volume: ""
 
   # -- 裝訂方向 -----------------------------------------------------
-  binding_style: "modern_vertical"   # 現代竖版（右翻）
+  binding_style: "modern_vertical"   # 現代竖版（右翳書）
 
-  # -- dy snap 對齊閾值（字數）-------------------------------------
+  # -- dy snap 對齊閾値（字數）-------------------------------------
   snap_chars: 2
 
   # ── 版面元素字號（相對正文 font_size 的倍率）--------------------
-  # 參考聯經出版物排版慣例
+  # 联经出版物排版慣例（以 13pt 正文為基準）：
+  #   篇章大標  ≈ 20pt → 1.54×
+  #   節標題    ≈ 16pt → 1.23×
+  #   副標題    ≈ 13pt → 1.00×（同正文）
+  #   著者行    ≈ 11pt → 0.85×
+  #   注疏/疏文 ≈ 11pt → 0.85×
+  #   夾注小字  ≈  6pt → 0.46×（雙行）
+  #   頁碼      ≈  9pt → 0.69×
   styles:
-    main_scale:      1.00   # 正文  = 11.0pt
-    heading_scale:   1.64   # 篇章大標（如「第一章」）= 18pt
-    title_scale:     1.36   # 節標題                   = 15pt
-    subtitle_scale:  1.00   # 副標題（同正文）         = 11pt
-    author_scale:    0.82   # 著者行                   = 9pt
-    interp_scale:    0.82   # 注疏/疏文                = 9pt
-    note_scale:      0.50   # 夾注雙行小字             = 5.5pt
-    pagenum_scale:   0.73   # 頁碼                     = 8pt
+    main_scale:      1.00   # 正文  = 13.0pt
+    heading_scale:   1.54   # 篇章大標（如「第一章」）≈ 20pt
+    title_scale:     1.23   # 節標題                   ≈ 16pt
+    subtitle_scale:  1.00   # 副標題（同正文）         = 13pt
+    author_scale:    0.85   # 著者行                   ≈ 11pt
+    interp_scale:    0.85   # 注疏/疏文                ≈ 11pt
+    note_scale:      0.50   # 夾注雙行小字             ≈  6.5pt
+    pagenum_scale:   0.69   # 頁碼                     ≈  9pt
 
 # -- 其他全域設定 --------------------------------------------------
 page_size:                "original"
