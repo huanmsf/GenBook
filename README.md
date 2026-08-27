@@ -98,18 +98,18 @@ font_path:   "fonts/STKAITI.TTF"
 ### 快速开始
 
 ```bash
-# 完整流程：OCR → 流式 typ → PDF（默认）
-python main.py input/古籍.pdf --pages 1-20
+# 完整流程：OCR → 流式 typ → PDF（推荐加 --paddle-vl）
+python main.py input/古籍.pdf --pages 1-20 --paddle-vl
 
 # 使用绝对坐标模式
-python main.py input/古籍.pdf --pages 1-20 --no-flow
+python main.py input/古籍.pdf --pages 1-20 --no-flow --paddle-vl
 ```
 
 ### 四种运行模式
 
 | 模式 | 命令 |
 |---|---|
-| A 完整流程 | `python main.py input/古籍.pdf --pages 1-20` |
+| A 完整流程 | `python main.py input/古籍.pdf --pages 1-20 --paddle-vl` |
 | B 从缓存重新生成 typ + PDF | `python main.py --from-cache output/xxx.ocr.json` |
 | C 从缓存只生成 typ | `python main.py --from-cache output/xxx.ocr.json --typ-only` |
 | D 从 typ 编译 PDF | `python main.py --pdf-from-typ output/xxx.typ` |
@@ -129,8 +129,8 @@ python main.py --from-cache output/xxx.ocr.json --typ-only --no-flow
 ### 典型工作流
 
 ```
-1. 首次运行（模式 A）
-   python main.py input/古籍.pdf --pages 1-50
+1. 首次运行（模式 A，建议加 --paddle-vl）
+   python main.py input/古籍.pdf --pages 1-50 --paddle-vl
 
 2. 调整配置后重排（模式 B，秒级，无需重跑 OCR）
    python main.py --from-cache output/古籍_out_xxx.ocr.json --output 古籍_v2.pdf
@@ -153,6 +153,16 @@ python main.py --from-cache output/xxx.ocr.json --typ-only --no-flow
 | `--typ-only` | 与 `--from-cache` 配合，只生成 `.typ` |
 | `--pdf-from-typ` | 直接从 `.typ` 编译 PDF |
 | `--flow` / `--no-flow` | 流式模式 / 绝对坐标模式 |
+| `--paddle-vl` | 百度 OCR 改用文档解析 PaddleOCR-VL。**古籍扫描建议加上**：识别更准，生僻字、异体字更少漏识 |
+
+不加 `--paddle-vl` 时默认走高精度 `accurate()`。效果通常可用，但部分字可能识别不出，排进 PDF 后会显示成空白方框（□）。对照实测，PaddleOCR-VL 对刻本正文更稳。
+
+```bash
+python main.py input/古籍.pdf --pages 1-20 --paddle-vl
+python img.py input/page.jpg --layout horizontal --config config/layout_config_modern_cn.yaml --paddle-vl
+```
+
+也可用环境变量 `BAIDU_OCR_API=paddle-vl`，与命令行 `--paddle-vl` 等效。
 
 ### 图片输入（`img.py`）
 
@@ -162,10 +172,10 @@ python main.py --from-cache output/xxx.ocr.json --typ-only --no-flow
 
 ```bash
 # 单张图片（排版方向由 --config 的 writing_mode 决定，默认竖排配置）
-python img.py input/page.png
+python img.py input/page.png --paddle-vl
 
 # 目录（多页），只处理第 1–15 张
-python img.py input/scans/ --pages 1-15
+python img.py input/scans/ --pages 1-15 --paddle-vl
 
 # 多文件
 python img.py a.png b.jpg --output 合集.pdf
@@ -178,6 +188,7 @@ python img.py a.png b.jpg --output 合集.pdf
 | `inputs` | 图片文件或目录（可多个） |
 | `--layout` | `auto`（默认，读配置 `writing_mode`）/ `vertical` / `horizontal` |
 | `--dpi` | 仅用于坐标换算的假定 DPI（图片不再缩放，默认 `300`） |
+| `--paddle-vl` | 同 `main.py`：改用 PaddleOCR-VL，减少漏识后的方框缺字 |
 | 其余 | `--pages` `--output` `--config` `--from-cache` `--typ-only` `--pdf-from-typ` `--flow` `--no-flow` 与 `main.py` 相同 |
 
 ### 简体横排
@@ -186,10 +197,10 @@ python img.py a.png b.jpg --output 合集.pdf
 
 ```bash
 # 图片 → 横排 PDF（默认 --no-flow：按 OCR JSON 坐标等比定位）
-python img.py input/page.jpg --layout horizontal --config config/layout_config_modern_cn.yaml
+python img.py input/page.jpg --layout horizontal --config config/layout_config_modern_cn.yaml --paddle-vl
 
 # 指定输出名
-python img.py "/path/to/123.jpg" --layout horizontal --config config/layout_config_modern_cn.yaml --output 123.pdf
+python img.py "/path/to/123.jpg" --layout horizontal --config config/layout_config_modern_cn.yaml --paddle-vl --output 123.pdf
 
 # 从 OCR 缓存重排（不重新调用云 OCR）
 python img.py --from-cache output/123.ocr.json --layout horizontal --config config/layout_config_modern_cn.yaml --output 123.pdf

@@ -117,6 +117,13 @@ def parse_args(argv=None) -> argparse.Namespace:
         "--no-flow", dest="flow", action="store_false",
         help="绝对坐标：横排默认；竖排时每列 #place(dx,dy)",
     )
+    parser.add_argument(
+        "--paddle-vl",
+        dest="paddle_vl",
+        action="store_true",
+        default=False,
+        help="百度 OCR 使用文档解析 PaddleOCR-VL（默认仍用高精度 accurate）",
+    )
     return parser.parse_args(argv)
 
 
@@ -282,6 +289,11 @@ def main(argv=None) -> int:
     source_for_name = args.inputs[0] if args.inputs else (args.from_cache or "output")
     output_pdf = build_output_path(source_for_name, args.output_pdf)
     log.info(f"输出路径: {output_pdf}")
+
+    if args.paddle_vl:
+        from modules.ocr_engine import enable_paddle_vl
+        enable_paddle_vl(True)
+        log.info("OCR 接口: 百度文档解析 PaddleOCR-VL")
 
     try:
         if args.pdf_from_typ:

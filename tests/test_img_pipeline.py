@@ -6,6 +6,7 @@ from PIL import Image
 from img import resolve_layout, resolve_flow, parse_args
 from modules.image_reader import collect_image_paths, images_to_pages, is_image_file
 from modules.pdf_writer import load_config
+from modules.ocr_jpeg import to_jpeg_payload
 from modules.typst_horizontal_writer import (
     create_typst,
     _build_header,
@@ -13,6 +14,17 @@ from modules.typst_horizontal_writer import (
     _cluster_rows,
 )
 from modules.page_model import PageData, TextColumn, CharData
+
+
+def test_ocr_payload_passthrough_small_png(tmp_path):
+    img = Image.new("RGB", (40, 60), (255, 255, 255))
+    path = tmp_path / "tiny.png"
+    img.save(path)
+    data = path.read_bytes()
+    payload, scale = to_jpeg_payload(data)
+    assert payload is data or payload[:8] == b"\x89PNG\r\n\x1a\n"
+    assert scale == 1.0
+    assert payload[:2] != b"\xff\xd8"
 
 
 def test_is_image_file():
@@ -51,6 +63,8 @@ def test_img_cli_parse():
     assert ns.flow is None
     assert parse_args(["foo.png", "--flow"]).flow is True
     assert parse_args(["foo.png", "--no-flow"]).flow is False
+    assert parse_args(["foo.png"]).paddle_vl is False
+    assert parse_args(["foo.png", "--paddle-vl"]).paddle_vl is True
 
 
 def test_resolve_flow_defaults():

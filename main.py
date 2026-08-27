@@ -198,6 +198,13 @@ def parse_args(argv=None) -> argparse.Namespace:
         action="store_false",
         help="使用绝对坐标竖排模式生成 .typ（回退到 typst_writer）",
     )
+    parser.add_argument(
+        "--paddle-vl",
+        dest="paddle_vl",
+        action="store_true",
+        default=False,
+        help="百度 OCR 使用文档解析 PaddleOCR-VL（默认仍用高精度 accurate）",
+    )
     return parser.parse_args(argv)
 
 
@@ -292,7 +299,8 @@ def process(
     """
     from modules.pdf_reader import pdf_to_images
     from modules.layout_analyzer import analyze_layout, Region
-    from modules.ocr_engine import recognize_region, sort_vertical_chars
+    from modules.ocr_engine import sort_vertical_chars
+    from modules.ocr_jpeg import recognize_region_safe
     from modules.image_cropper import crop_image_region
     from modules.page_model import PageData, TextColumn, CharData, ImageRegion
     from modules.pdf_writer import load_config, create_pdf
@@ -327,7 +335,7 @@ def process(
 
         text_columns: list[TextColumn] = []
         for region in text_regions:
-            raw_chars    = recognize_region(
+            raw_chars    = recognize_region_safe(
                 page_img.image_bytes,
                 region_bbox=region.bbox,
                 confidence_threshold=confidence_threshold,
@@ -442,6 +450,11 @@ if __name__ == "__main__":
     output_pdf = build_output_path(args.input_pdf, args.output_pdf)
 
     log.info(f"输出路径: {output_pdf}")
+
+    if args.paddle_vl:
+        from modules.ocr_engine import enable_paddle_vl
+        enable_paddle_vl(True)
+        log.info("OCR 接口: 百度文档解析 PaddleOCR-VL")
 
     try:
         if args.pdf_from_typ:
