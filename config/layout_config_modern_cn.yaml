@@ -1,0 +1,128 @@
+# GenBook 排版配置 — 大陆简体横排「常规版」规格
+# 参考档： config/layout_config_modern_tw.yaml（港台竖版）
+#
+# ══════════════════════════════════════════════════════════════
+#  规格依据：中华书局 / 商务印书馆 / 人民文学出版社
+#            简体横排点校本、文学读本（大 32 开）常见版式
+#  ────────────────────────────────────────────────────────────
+#
+#  「大陆简体横排」（本档）          「港台竖版常规」
+#  ─────────────────────   ─────────────────────
+#  开本  大32开  140×203 mm        JIS-B5  182×257 mm
+#  行文  横排、左翻、首行缩进两字     竖排、右翻
+#  天头  22 mm                     20 mm
+#  地脚  20 mm                     20 mm
+#  装订  22 mm（左侧订口）          18 mm（右侧订口）
+#  书口  16 mm（右侧切口）          13 mm
+#  版心  102×161 mm (289×456 pt)   151×217 mm
+#  字号  10.5 pt（五号宋体）        12 pt
+#  行距  约 1.65 倍行高             字距 = 字号 × 20%
+#  约字  ≈ 27 字/行 × 27 行/页      ≈ 26 列 × 42 字/列
+# ══════════════════════════════════════════════════════════════
+
+# -- 字体 ----------------------------------------------------------
+# 大陆正文常用宋体；本仓库现有楷体可先用，有思源宋体 SC 时建议替换
+font_family: "STKaiTi"
+font_path:   "fonts/STKAITI.TTF"
+# font_family: "SourceHanSerifSC"
+# font_path:   "fonts/SourceHanSerifSC-Regular.otf"
+# 系统字体备选：Songti SC / STSong / SimSun / Noto Serif CJK SC
+
+# -- 字号 ----------------------------------------------------------
+# 五号 = 10.5 pt，中华书局点校本、人文社读本最常见正文字号
+#
+# 可选取对照：
+#   9 pt    ≈ 小五 — 工具书、注释本
+#   10.5 pt ≈ 五号 — 常规版（本档预设）
+#   12 pt   ≈ 小四 — 大字读本
+#   14 pt   ≈ 四号 — 少儿 / 大字本
+font_size:      10.5    # pt
+note_font_size: 9.0     # pt，夹注/脚注（小五，font_size × 0.86）
+
+# line_spacing:
+#   竖排：0 = 自动取 font_size × 20%（字距）
+#   横排：0 = 自动取 font_size × 0.65（约 1.65 倍行高，对应 Typst leading）
+line_spacing: 0
+
+# -- 列间距（横排时作段间距参考，单位 pt）------------------------
+column_spacing: 6
+
+# -- 旧版 PDF writer 页边距（单位 pt）-------------------
+# 22/20/22/16 mm → 62 / 57 / 62 / 45 pt
+page_margin:
+  top:    62   # 22 mm 天头
+  bottom: 57   # 20 mm 地脚
+  left:   62   # 22 mm 订口（左翻书内侧）
+  right:  45   # 16 mm 切口（左翻书外侧）
+
+# -- 排版核心配置 -------------------------------------------------
+guji_layout:
+  enabled: true
+  template: "blank"   # blank=现代光版 | classic=古籍线框（待实现）
+
+  # 大 32 开（GB/T 788：880×1230 1/32 ≈ 140×203 mm）
+  # Typst 无此预置名，由 page_width_mm / page_height_mm 输出
+  paper:          "d32kai"
+  page_width_mm:  140
+  page_height_mm: 203
+
+  # -- 版面留白（单位 mm）------------------------------------------
+  # 版心 = 140-22-16=102 mm  ×  203-22-20=161 mm
+  #       = 289 pt              ×  456 pt
+  tian_tou_mm:    22    # 天头
+  di_jiao_mm:     20    # 地脚
+  zhuang_ding_mm: 22    # 装订边（横排左翻 = 左边）
+  shu_kou_mm:     16    # 书口/切口（横排左翻 = 右边）
+
+  # -- 行参数（横排时 char_per_col = 约每行字数）--------------------
+  # 289 / 10.5 ≈ 27.5 → 27 字/行
+  # 456 / (10.5×1.65) ≈ 26.3 → 26 行/页
+  char_per_col:       27
+  reserve_empty_cols: 0
+  note_col_ratio:     0.55
+  first_line_indent_em: 2    # 大陆横排：首行缩进两字
+
+  # -- 列类型判断阈值（用于把竖排 OCR 列重排为标题/正文/夹注）------
+  note_gap_ratio:  0.55
+  note_max_chars:  6
+  note_cx_ratio:   0.85
+  title_max_chars: 12
+
+  # -- 页码 ---------------------------------------------------------
+  show_page_num:   true
+  page_num_offset: 1
+  page_num_style:  "arabic"   # 大陆图书正文页码以阿拉伯数字为主
+
+  # -- 天头书名／卷次（留空则不显示）-------------------------------
+  header_title:  ""
+  header_volume: ""
+
+  # -- 装订方向 -----------------------------------------------------
+  binding_style: "modern_horizontal"   # 左翻横排
+
+  # -- dy snap（横排重排时忽略，保留字段兼容）----------------------
+  snap_chars: 2
+
+  # ── 版面元素字号倍率（相对正文 font_size = 10.5 pt）────────────
+  #   篇章大标 1.52 → 16 pt（约三号）
+  #   节标题   1.33 → 14 pt（四号）
+  #   副标题   1.14 → 12 pt（小四）
+  #   著者行   1.00 → 10.5 pt
+  #   注疏     0.95 → 10 pt
+  #   夹注     0.86 →  9 pt（小五）
+  #   页码     0.76 →  8 pt
+  styles:
+    main_scale:      1.00
+    heading_scale:   1.52
+    title_scale:     1.33
+    subtitle_scale:  1.14
+    author_scale:    1.00
+    interp_scale:    0.95
+    note_scale:      0.86
+    pagenum_scale:   0.76
+
+# -- 其他全域设定 --------------------------------------------------
+page_size:                "original"
+writing_mode:             "horizontal-tb"    # 简体横排；竖版配置为 vertical-rl
+image_scale:              1.0
+ocr_confidence_threshold: 0.7

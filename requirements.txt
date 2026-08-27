@@ -1,13 +1,19 @@
 # GenBook dependencies
+# 国内安装（清华镜像）：
+#   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 说明：macOS Intel + Python 3.9 下 OpenCV 5.x 没有预编译 wheel，会走源码编译并失败。
 PyMuPDF>=1.23.0
 Pillow>=10.0.0
-opencv-python-headless>=4.8.0
-paddlepaddle>=2.5.0
-paddleocr>=2.7.0
-reportlab>=4.0.0
+opencv-python-headless==4.10.0.84
+paddlepaddle==2.6.2
+paddleocr==2.8.1
+reportlab>=4.0.0,<5
 PyYAML>=6.0
-numpy>=1.24.0
+numpy>=1.24.0,<2.0
 pytest>=7.4.0
+python-dotenv>=1.0.0
+typst>=0.12.0
+chardet>=5.0.0
 
 # OCR 后端（按需安装其中一个，通过环境变量 OCR_BACKEND 切换）
 # 百度智能云（推荐，国内首选，OCR_BACKEND=baidu）：

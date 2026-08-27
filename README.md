@@ -1,10 +1,21 @@
-# GenBook — 古籍 PDF OCR 转换工具
+# GenBook — 古籍 PDF / 图片 OCR 转换工具
 
-将**图片版 PDF**（扫描件、不可编辑）转换为**可搜索、可复制的文字 PDF**，专为竖排繁体古籍优化。
+将**扫描件**（图片版 PDF，或 JPG/PNG 等图片）转换为**可搜索、可复制的文字 PDF**。竖排繁体、简体横排均可。
 
 - 自动识别文字与图片区域，支持百度 / 腾讯 / Google 三大 OCR 云端引擎
-- 保留竖排版式（从右到左），输出 Typst 排版源文件（可在 Tinymist 中实时预览微调）
-- 支持**流式 grid 模式**（默认，插删列方便）和**绝对坐标模式**两种排版方式
+- 竖排：保留从右到左版式，输出 Typst 源文件（可在 Tinymist 中实时预览微调）
+- 横排：简体横排，默认按 OCR 坐标绝对定位（原图第 n 行对应生成 PDF 第 n 行）
+- PDF 入口：`main.py`；图片入口：`img.py`（单文件、多文件或目录）
+
+## 效果展示
+
+《周易玩辞》扫描页 → 可搜索繁体竖排 PDF。
+
+<p align="center">
+  <img src="docs/222.png" alt="扫描原图" width="46%" />
+  <img src="docs/111.png" alt="竖排输出" width="46%" />
+</p>
+<p align="center"><sub>左：扫描原图　　右：GenBook 竖排输出</sub></p>
 
 ---
 
@@ -143,9 +154,69 @@ python main.py --from-cache output/xxx.ocr.json --typ-only --no-flow
 | `--pdf-from-typ` | 直接从 `.typ` 编译 PDF |
 | `--flow` / `--no-flow` | 流式模式 / 绝对坐标模式 |
 
+### 图片输入（`img.py`）
+
+输入是图片（单文件、多文件或目录），不是 PDF。OCR / 缓存 / Typst 编译与 `main.py` 相同；横排走独立 writer。
+
+支持格式：`.png` `.jpg` `.jpeg` `.tif` `.tiff` `.webp` `.bmp`。目录内按文件名排序，一图一页。
+
+```bash
+# 单张图片（排版方向由 --config 的 writing_mode 决定，默认竖排配置）
+python img.py input/page.png
+
+# 目录（多页），只处理第 1–15 张
+python img.py input/scans/ --pages 1-15
+
+# 多文件
+python img.py a.png b.jpg --output 合集.pdf
+```
+
+缓存与四种模式（`--from-cache` / `--typ-only` / `--pdf-from-typ`）用法同 `main.py`。
+
+| 参数 | 说明 |
+|---|---|
+| `inputs` | 图片文件或目录（可多个） |
+| `--layout` | `auto`（默认，读配置 `writing_mode`）/ `vertical` / `horizontal` |
+| `--dpi` | 仅用于坐标换算的假定 DPI（图片不再缩放，默认 `300`） |
+| 其余 | `--pages` `--output` `--config` `--from-cache` `--typ-only` `--pdf-from-typ` `--flow` `--no-flow` 与 `main.py` 相同 |
+
+### 简体横排
+
+使用大陆横排配置 `config/layout_config_modern_cn.yaml`（大 32 开 140×203 mm，`writing_mode: horizontal-tb`）。
+
+```bash
+# 图片 → 横排 PDF（默认 --no-flow：按 OCR JSON 坐标等比定位）
+python img.py input/page.jpg --layout horizontal --config config/layout_config_modern_cn.yaml
+
+# 指定输出名
+python img.py "/path/to/123.jpg" --layout horizontal --config config/layout_config_modern_cn.yaml --output 123.pdf
+
+# 从 OCR 缓存重排（不重新调用云 OCR）
+python img.py --from-cache output/123.ocr.json --layout horizontal --config config/layout_config_modern_cn.yaml --output 123.pdf
+
+# 横排段落重排（两端对齐、首行缩进；需显式 --flow）
+python img.py input/page.jpg --layout horizontal --config config/layout_config_modern_cn.yaml --flow
+```
+
+`--layout auto` 时：CN 配置会走横排，港台竖版配置走竖排。也可对竖版配置强制 `--layout horizontal`。
+
+| 参数 | 竖排（`main.py` / `img.py --layout vertical`） | 横排（`img.py --layout horizontal`） |
+|---|---|---|
+| `--flow`（默认） | 流式 grid：列顺序即显示顺序 | 需显式指定：段落重排 |
+| `--no-flow` | 每列 `#place(dx,dy)` | **默认**：高度相近为同一行，行内左→右；`dx/dy` 由 JSON 坐标相对页宽/页高等比换算 |
+
 ---
 
 ## 5. 排版配置
+
+用 `--config` 指定配置文件：
+
+| 文件 | 用途 |
+|---|---|
+| `config/layout_config.yaml` | 扫描还原，竖排（`main.py` 默认） |
+| `config/layout_config_modern_tw.yaml` | 港台竖版，JIS-B5 |
+| `config/layout_config_modern_tw_large.yaml` | 港台大字竖版 |
+| `config/layout_config_modern_cn.yaml` | 大陆简体横排，大 32 开（140×203 mm） |
 
 编辑 `config/layout_config.yaml`：
 
@@ -181,26 +252,34 @@ guji_layout:
 
 ```
 GenBook/
-├── main.py                  # 主入口（--help 查看所有参数）
+├── main.py                  # PDF 入口（--help 查看所有参数）
+├── img.py                   # 图片入口（竖排 / 横排）
 ├── requirements.txt
 ├── .env.example             # API 凭证模板
 │
 ├── config/
-│   └── layout_config.yaml   # 排版配置
+│   ├── layout_config.yaml              # 扫描还原，竖排
+│   ├── layout_config_modern_tw.yaml    # 港台竖版
+│   ├── layout_config_modern_tw_large.yaml
+│   └── layout_config_modern_cn.yaml    # 大陆简体横排
 │
 ├── fonts/                   # 字体文件（手动放入，不提交 git）
-├── input/                   # 待转换的源 PDF
+├── docs/                    # README 展示图
+├── input/                   # 待转换的源 PDF / 图片
 ├── output/                  # 转换结果（pdf / typ / ocr.json）
 │
 ├── modules/
 │   ├── pdf_reader.py        # PDF → 高清图片
+│   ├── image_reader.py      # 图片文件 → 页
 │   ├── layout_analyzer.py   # 版面分析
-│   ├── ocr_engine.py        # OCR 识别（PaddleOCR）
+│   ├── ocr_engine.py        # OCR 识别
+│   ├── ocr_jpeg.py          # 图片送检压缩（百度体积限制）
 │   ├── ocr_cache.py         # OCR 缓存序列化
 │   ├── image_cropper.py     # 图片区域裁剪
 │   ├── page_model.py        # 中间数据模型
 │   ├── typst_flow_writer.py # 流式 grid 竖排生成（默认）
 │   ├── typst_writer.py      # 绝对坐标竖排生成（--no-flow）
+│   ├── typst_horizontal_writer.py  # 简体横排（img.py）
 │   └── pdf_writer.py        # ReportLab PDF（降级备用）
 │
 └── tests/
